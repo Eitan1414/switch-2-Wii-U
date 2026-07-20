@@ -122,7 +122,6 @@ void playFolderSound(AppContext& context) {
     context.drawerEffect = 1;
     context.drawerEffectStarted = SDL_GetTicks64();
 
-    // Son compose specialement pour l'ouverture du tiroir : glissement + carillon.
     if (context.soundFolder) {
         const int channel = Mix_PlayChannel(-1, context.soundFolder, 0);
         if (channel >= 0) Mix_SetPanning(channel, 80, 255);
@@ -138,6 +137,18 @@ void playFolderSound(AppContext& context) {
 
 void playLaunchSound(AppContext& context) {
     if (context.soundLaunch) Mix_PlayChannel(-1, context.soundLaunch, 0);
+}
+
+void startBackgroundMusic(AppContext& context) {
+    if (!context.backgroundMusic || Mix_PlayingMusic()) return;
+    Mix_VolumeMusic(MIX_MAX_VOLUME / 5);
+    Mix_FadeInMusic(context.backgroundMusic, -1, 700);
+}
+
+void stopBackgroundMusic(int fadeMs) {
+    if (!Mix_PlayingMusic()) return;
+    if (fadeMs > 0) Mix_FadeOutMusic(fadeMs);
+    else Mix_HaltMusic();
 }
 
 float easeOutCubic(float value) {
@@ -163,7 +174,8 @@ bool initialize(AppContext& context) {
     if ((IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG | IMG_INIT_WEBP) & IMG_INIT_WEBP) == 0) return false;
     if (TTF_Init() != 0) return false;
     Mix_Init(MIX_INIT_OGG);
-    Mix_OpenAudioDevice(48000, MIX_DEFAULT_FORMAT, 2, 1024, nullptr, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    if (Mix_OpenAudioDevice(48000, MIX_DEFAULT_FORMAT, 2, 1024, nullptr,
+                            SDL_AUDIO_ALLOW_ANY_CHANGE) != 0) return false;
 
     context.window = SDL_CreateWindow("Switch2 Mode", SDL_WINDOWPOS_UNDEFINED,
                                       SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT,
@@ -180,6 +192,7 @@ bool initialize(AppContext& context) {
     context.soundBack = Mix_LoadWAV("fs:/vol/content/sound/back.ogg");
     context.soundFolder = Mix_LoadWAV("fs:/vol/content/sound/folder.ogg");
     context.soundLaunch = Mix_LoadWAV("fs:/vol/content/sound/launch.ogg");
+    context.backgroundMusic = Mix_LoadMUS("fs:/vol/content/sound/background.ogg");
 
     context.acInitialized = NNResult_IsSuccess(ACInitialize());
     context.actInitialized = nn::act::Initialize().IsSuccess();
@@ -206,6 +219,7 @@ bool initialize(AppContext& context) {
 }
 
 void finalize(AppContext& context) {
+    stopBackgroundMusic();
     for (auto* controller : context.controllers) SDL_GameControllerClose(controller);
     if (context.fontSmall) TTF_CloseFont(context.fontSmall);
     if (context.fontMedium) TTF_CloseFont(context.fontMedium);
@@ -215,6 +229,7 @@ void finalize(AppContext& context) {
     if (context.soundBack) Mix_FreeChunk(context.soundBack);
     if (context.soundFolder) Mix_FreeChunk(context.soundFolder);
     if (context.soundLaunch) Mix_FreeChunk(context.soundLaunch);
+    if (context.backgroundMusic) Mix_FreeMusic(context.backgroundMusic);
     if (context.actInitialized) nn::act::Finalize();
     if (context.acInitialized) ACFinalize();
     SDL_DestroyRenderer(context.renderer);
@@ -247,6 +262,7 @@ int main() {
     std::filesystem::remove(INTRO_PENDING_PATH, pendingError);
     bool enterLauncher = config.enabled;
     if (!config.enabled) {
+        startBackgroundMusic(context);
         enterLauncher = runControlPanel(context, config, true);
     }
 
@@ -255,8 +271,10 @@ int main() {
     while (enterLauncher) {
         if (shouldPlayIntro) playIntro(context);
         shouldPlayIntro = false;
+        startBackgroundMusic(context);
         const auto result = runLauncher(context, config);
         if (result == LauncherResult::ReturnToControl) {
+            startBackgroundMusic(context);
             enterLauncher = runControlPanel(context, config, false);
             continue;
         }
