@@ -18,7 +18,7 @@ void fillCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, SD
 void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool active) {
     const SDL_Color color = active ? SDL_Color{0, 168, 218, 255} : SDL_Color{55, 60, 70, 255};
     SDL_SetRenderDrawColor(context.renderer, color.r, color.g, color.b, color.a);
-    if (kind == 0) { // Miiverse : bulle de discussion et silhouettes
+    if (kind == 0) {
         SDL_Rect bubble{centerX - 15, centerY - 12, 30, 20};
         SDL_RenderDrawRect(context.renderer, &bubble);
         SDL_RenderDrawLine(context.renderer, centerX - 8, centerY + 8,
@@ -27,12 +27,12 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
         fillCircle(context.renderer, centerX + 6, centerY - 4, 3, color);
         SDL_RenderDrawLine(context.renderer, centerX - 10, centerY + 4,
                            centerX + 11, centerY + 4);
-    } else if (kind == 1) { // eShop
+    } else if (kind == 1) {
         SDL_Rect bag{centerX - 12, centerY - 7, 24, 20};
         SDL_RenderDrawRect(context.renderer, &bag);
         SDL_Rect handle{centerX - 6, centerY - 13, 12, 8};
         SDL_RenderDrawRect(context.renderer, &handle);
-    } else if (kind == 2) { // Navigateur Internet : globe
+    } else if (kind == 2) {
         for (int degree = 0; degree < 360; degree += 6) {
             const float angle = static_cast<float>(degree) * 3.14159265f / 180.0f;
             SDL_RenderDrawPoint(context.renderer,
@@ -45,7 +45,7 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
                            centerX, centerY + 14);
         SDL_Rect meridian{centerX - 7, centerY - 14, 14, 28};
         SDL_RenderDrawRect(context.renderer, &meridian);
-    } else if (kind == 3) { // Notifications : cloche
+    } else if (kind == 3) {
         SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
                            centerX - 7, centerY - 10);
         SDL_RenderDrawLine(context.renderer, centerX - 7, centerY - 10,
@@ -61,14 +61,14 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
         SDL_RenderDrawLine(context.renderer, centerX + 11, centerY + 7,
                            centerX + 13, centerY + 10);
         fillCircle(context.renderer, centerX, centerY + 14, 3, color);
-    } else if (kind == 4) { // Liste d'amis : deux personnes
+    } else if (kind == 4) {
         fillCircle(context.renderer, centerX - 7, centerY - 7, 6, color);
         fillCircle(context.renderer, centerX + 8, centerY - 5, 5, color);
         SDL_Rect leftBody{centerX - 16, centerY + 1, 18, 12};
         SDL_Rect rightBody{centerX + 2, centerY + 2, 15, 10};
         SDL_RenderFillRect(context.renderer, &leftBody);
         SDL_RenderFillRect(context.renderer, &rightBody);
-    } else { // Gestion des telechargements : fleche et bac
+    } else {
         SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
                            centerX, centerY + 6);
         SDL_RenderDrawLine(context.renderer, centerX - 7, centerY,
@@ -84,18 +84,83 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
     }
 }
 
+void drawDrawerTransition(AppContext& context) {
+    if (context.drawerEffect == 0 || context.drawerEffectStarted == 0) return;
+
+    constexpr float durationMs = 460.0f;
+    const uint64_t elapsed = SDL_GetTicks64() - context.drawerEffectStarted;
+    const float raw = std::clamp(static_cast<float>(elapsed) / durationMs, 0.0f, 1.0f);
+    if (raw >= 1.0f) {
+        context.drawerEffect = 0;
+        context.drawerEffectStarted = 0;
+        return;
+    }
+
+    const float eased = easeOutCubic(raw);
+    const float openAmount = context.drawerEffect > 0 ? eased : 1.0f - eased;
+    const float pulse = std::sin(raw * 3.14159265f);
+
+    SDL_SetRenderDrawBlendMode(context.renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(context.renderer, 12, 18, 28,
+                           static_cast<Uint8>(72.0f * pulse));
+    SDL_Rect screen{0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_RenderFillRect(context.renderer, &screen);
+
+    const SDL_Color accent{0, 174, 221, 255};
+    const int centerX = SCREEN_WIDTH / 2;
+    const int bodyY = 350;
+    const int lidLift = static_cast<int>(openAmount * 72.0f);
+    const int cardRise = static_cast<int>(openAmount * 142.0f);
+    const int cardSpread = static_cast<int>(openAmount * 88.0f);
+
+    for (int i = -1; i <= 1; ++i) {
+        const int cardX = centerX - 37 + i * cardSpread;
+        const int cardY = bodyY + 22 - cardRise + std::abs(i) * 12;
+        SDL_Rect card{cardX, cardY, 74, 92};
+        drawRoundedPanel(context, card,
+                         {255, 255, 255, static_cast<Uint8>(210 + 40 * openAmount)},
+                         {accent.r, accent.g, accent.b, 255}, 3);
+        SDL_Rect inner{card.x + 9, card.y + 9, card.w - 18, card.w - 18};
+        SDL_SetRenderDrawColor(context.renderer,
+                               static_cast<Uint8>(accent.r + (i + 1) * 12),
+                               static_cast<Uint8>(std::min(255, accent.g + 20 + (i + 1) * 8)),
+                               static_cast<Uint8>(std::min(255, accent.b + (i + 1) * 6)), 255);
+        SDL_RenderFillRect(context.renderer, &inner);
+    }
+
+    SDL_Rect body{centerX - 190, bodyY, 380, 150};
+    drawRoundedPanel(context, body,
+                     {247, 250, 253, 252},
+                     {accent.r, accent.g, accent.b, 255}, 6);
+
+    SDL_Rect front{body.x + 18, body.y + 40, body.w - 36, body.h - 58};
+    SDL_SetRenderDrawColor(context.renderer, accent.r, accent.g, accent.b, 235);
+    SDL_RenderFillRect(context.renderer, &front);
+    SDL_SetRenderDrawColor(context.renderer, 255, 255, 255, 85);
+    SDL_Rect shine{front.x + 16, front.y + 14, front.w - 32, 8};
+    SDL_RenderFillRect(context.renderer, &shine);
+
+    SDL_Rect lid{centerX - 204, bodyY - 26 - lidLift, 408, 58};
+    drawRoundedPanel(context, lid,
+                     {255, 255, 255, 252},
+                     {accent.r, accent.g, accent.b, 255}, 5);
+    SDL_Rect handle{centerX - 46, lid.y + 18, 92, 15};
+    SDL_SetRenderDrawColor(context.renderer, accent.r, accent.g, accent.b, 255);
+    SDL_RenderFillRect(context.renderer, &handle);
+
+    drawText(context, context.fontSmall,
+             context.drawerEffect > 0 ? "OUVERTURE DU TIROIR" : "FERMETURE DU TIROIR",
+             centerX, 535, {255, 255, 255, 255}, true);
+}
+
 } // namespace
 
 SDL_Texture* makeTextTexture(AppContext& context, TTF_Font* font,
                              const std::string& text, SDL_Color color,
                              int* width, int* height) {
-    if (!font || text.empty()) {
-        return nullptr;
-    }
+    if (!font || text.empty()) return nullptr;
     SDL_Surface* surface = TTF_RenderUTF8_Blended(font, text.c_str(), color);
-    if (!surface) {
-        return nullptr;
-    }
+    if (!surface) return nullptr;
     if (width) *width = surface->w;
     if (height) *height = surface->h;
     SDL_Texture* texture = SDL_CreateTextureFromSurface(context.renderer, surface);
@@ -108,9 +173,7 @@ void drawText(AppContext& context, TTF_Font* font, const std::string& text,
     int width = 0;
     int height = 0;
     SDL_Texture* texture = makeTextTexture(context, font, text, color, &width, &height);
-    if (!texture) {
-        return;
-    }
+    if (!texture) return;
     SDL_Rect target{x - (centered ? width / 2 : 0), y, width, height};
     SDL_RenderCopy(context.renderer, texture, nullptr, &target);
     SDL_DestroyTexture(texture);
@@ -168,6 +231,8 @@ void drawSystemDock(AppContext& context, int selectedIndex) {
         drawText(context, context.fontSmall, labels[i], centerX, 651,
                  active ? SDL_Color{0, 143, 191, 255} : SDL_Color{82, 87, 96, 255}, true);
     }
+
+    drawDrawerTransition(context);
 }
 
 void drawFolderIcon(AppContext& context, const SDL_Rect& rect, SDL_Color color) {
