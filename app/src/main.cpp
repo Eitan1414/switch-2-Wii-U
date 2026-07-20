@@ -95,11 +95,45 @@ void playAcceptSound(AppContext& context) {
 }
 
 void playBackSound(AppContext& context) {
+    if (context.drawerOpen) {
+        context.drawerOpen = false;
+        context.drawerEffect = -1;
+        context.drawerEffectStarted = SDL_GetTicks64();
+
+        if (context.soundBack) {
+            const int channel = Mix_PlayChannel(-1, context.soundBack, 0);
+            if (channel >= 0) Mix_SetPanning(channel, 255, 105);
+        }
+        if (context.soundFolder) {
+            const int channel = Mix_PlayChannel(-1, context.soundFolder, 0);
+            if (channel >= 0) {
+                Mix_Volume(channel, MIX_MAX_VOLUME * 2 / 3);
+                Mix_SetPanning(channel, 120, 255);
+            }
+        }
+        return;
+    }
+
     if (context.soundBack) Mix_PlayChannel(-1, context.soundBack, 0);
 }
 
 void playFolderSound(AppContext& context) {
-    if (context.soundFolder) Mix_PlayChannel(-1, context.soundFolder, 0);
+    context.drawerOpen = true;
+    context.drawerEffect = 1;
+    context.drawerEffectStarted = SDL_GetTicks64();
+
+    // Son compose specialement pour l'ouverture du tiroir : glissement + carillon.
+    if (context.soundFolder) {
+        const int channel = Mix_PlayChannel(-1, context.soundFolder, 0);
+        if (channel >= 0) Mix_SetPanning(channel, 80, 255);
+    }
+    if (context.soundAccept) {
+        const int channel = Mix_PlayChannel(-1, context.soundAccept, 0);
+        if (channel >= 0) {
+            Mix_Volume(channel, MIX_MAX_VOLUME * 3 / 5);
+            Mix_SetPanning(channel, 255, 115);
+        }
+    }
 }
 
 void playLaunchSound(AppContext& context) {
