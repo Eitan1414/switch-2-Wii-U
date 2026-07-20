@@ -1,16 +1,8 @@
 # Switch2 Mode pour Wii U
 
 Switch2 Mode est un lanceur graphique pour Wii U sous Aroma. Il affiche les jeux,
-les logiciels Wii U et les homebrews dans une interface horizontale, reprend les
-collections creees dans le menu Wii U et utilise la video fournie comme introduction.
-Le lecteur de collections fonctionne en lecture seule et ne modifie aucun fichier de
-la NAND.
-
-## Contenu
-
-- `Switch2Mode.wuhb` : application graphique et lanceur de jeux, logiciels et homebrews.
-- `Switch2ModePlugin.wps` : relance automatiquement le mode lorsqu'il est actif.
-- `Boot_WiiU_Switch2_16x9_Corrige_30FPS.mp4` : video source corrigee fournie par l'utilisateur.
+les logiciels Wii U et les homebrews, reprend les collections du menu Wii U et
+utilise la video fournie comme introduction.
 
 ## Installation
 
@@ -22,102 +14,66 @@ SD:/wiiu/environments/aroma/plugins/Switch2ModePlugin.wps
 ```
 
 Redemarrer Aroma, ouvrir **Switch2 Mode**, puis choisir **Activer et lancer**.
-Le mode se rouvrira ensuite automatiquement au demarrage et apres la fermeture
-d'un jeu. L'intro complete n'est jouee qu'au premier lancement suivant le
-demarrage d'Aroma.
+Maintenir **B** a l'arrivee sur le menu Wii U ignore le lancement automatique.
 
-Maintenir **B** pendant l'arrivee sur le menu Wii U ignore le lancement
-automatique pour cette fois. Le mode sans echec d'Aroma reste disponible avec
-`L + Haut + Minus` pendant le demarrage.
+## Interface v0.8.0
 
-## Collections du menu Wii U
+La v0.8.0 reprend le style bleu lumineux valide :
 
-Switch2 Mode lit l'organisation du profil Wii U actif dans
-`BaristaAccountSaveFile.dat`. Il utilise correctement le repertoire utilisateur
-`8000000X`, comme le menu Wii U et Homebrew on Wii U Menu.
+- cartes translucides avec effet verre ;
+- halo bleu autour de la selection ;
+- ombres et reflets ;
+- particules lumineuses legeres ;
+- dock inferieur translucide ;
+- indicateur de position ;
+- animation legere des illustrations ;
+- textes limites a leur zone.
 
-Les collections creees directement depuis le menu Wii U sont affichees avec :
+Les categories utilisent une console et un GamePad pour `Tous les jeux`, un sac
+orange pour `Logiciels Wii U`, un dossier beige avec contour colore pour les
+collections, une fiole pour `Homebrews`, une etoile pour `Favoris` et une horloge
+pour `Recents`.
 
-- leur nom ;
-- leur couleur ;
-- les jeux ranges a l'interieur ;
-- l'ordre des jeux dans chaque collection.
+L'icone verte de la barre inferieure correspond a **Miiverse**. Le sac orange
+correspond a **Nintendo eShop**.
 
-Lorsque **Homebrew on Wii U Menu** redirige l'organisation vers la carte SD,
-Switch2 Mode utilise automatiquement cette copie active. Sinon, il lit la
-sauvegarde native du menu dans la MLC. Cette lecture est strictement en lecture
-seule : l'application ne deplace aucun jeu et ne reecrit jamais la sauvegarde du
-menu Wii U.
+## Compatibilite UTheme / StyleMiiU
 
-## Jeux, logiciels et homebrews
+La compatibilite UTheme est conservee et reste le mode de fond par defaut.
+Le nouveau rendu ne remplace pas le theme : une couche bleue translucide est
+dessinee par-dessus afin que l'image UTheme reste visible sous les cartes, les
+halos et les particules.
 
-Les vues rapides comprennent maintenant :
-
-- `Tous les jeux` : titres utilisateur installes ;
-- `Logiciels Wii U` : applications systeme et logiciels installes reconnus ;
-- `Homebrews` : fichiers `.wuhb` et `.rpx` trouves dans `SD:/wiiu/apps`, y compris
-  dans les sous-dossiers ;
-- `Favoris` et `Recents` : vues propres a Switch2 Mode.
-
-Les mises a jour et contenus additionnels ne sont pas listes comme applications.
-Le menu Wii U lui-meme est exclu pour eviter une entree inutile dans le lanceur.
-
-## Textes, animations et sons
-
-Les noms ne sont plus coupes selon un simple nombre de caracteres. Leur largeur
-reelle est mesuree avec la police Wii U :
-
-- deux lignes maximum dans les cartes ;
-- points de suspension automatiques dans les barres et titres ;
-- largeur limitee dans les boutons, le dock et l'ecran de lancement.
-
-L'ouverture d'une collection joue une animation de tiroir avec des cartes qui en
-sortent. La fermeture joue l'effet inverse. Des signatures sonores distinctes sont
-utilisees pour l'ouverture et la fermeture.
-
-Une musique de fond originale et discrete est generee directement par
-l'application. Aucun fichier musical Nintendo n'est inclus. La musique baisse et
-s'arrete pendant l'introduction et le lancement d'un titre.
-
-## Commandes
-
-- Gauche / Droite : parcourir les jeux, collections et vues rapides.
-- A : ouvrir une collection ou lancer l'element selectionne.
-- B : refermer une collection ou ouvrir le panneau du mode.
-- X ou Plus : ouvrir les options.
-- Y : ajouter ou retirer un jeu ou logiciel des favoris Switch2 Mode.
-- Bas : passer de la liste a la barre d'actions circulaires.
-- Haut : revenir de la barre d'actions aux elements.
-
-La barre inferieure reprend les raccourcis Miiverse, Nintendo eShop, navigateur
-Internet, notifications, liste d'amis et gestion des telechargements. L'icone verte
-fournie correspond a **Miiverse**, le sac orange a **Nintendo eShop**, et le dossier
-beige sert de base visuelle aux collections. La Liste d'amis conserve son propre
-pictogramme separe.
-
-## UTheme / StyleMiiU
-
-Le menu Wii U original et ses themes ne sont jamais remplaces. Une image
-personnelle peut etre placee dans :
+Une image personnelle peut toujours etre placee dans :
 
 ```text
 SD:/wiiu/switch2mode/background.png
 ```
 
-## Compilation
+Le panneau permet toujours de choisir le fond standard, UTheme ou le fond
+personnalise.
 
-Le workflow GitHub Actions compile automatiquement l'application et le plugin,
-puis produit `Switch2Mode_SD.zip`.
+## Collections Wii U
 
-```bash
-docker build -t switch2mode-builder .
-docker run --rm -v "$PWD":/project switch2mode-builder ./scripts/build.sh
-```
+Switch2 Mode lit `BaristaAccountSaveFile.dat` en lecture seule. Les collections
+sont affichees avec leur nom, leur couleur, leurs jeux et leur ordre. Le repertoire
+de profil `8000000X` et la redirection Homebrew on Wii U Menu sont pris en charge.
 
-## Limites de cette version alpha
+## Jeux, logiciels et homebrews
 
-- Les collections Wii U restent en lecture seule.
-- Certains logiciels systeme internes peuvent refuser un lancement direct selon
-  la region ou la configuration de la console.
-- Les homebrews sans icone exploitable utilisent une icone de remplacement.
-- La compilation GitHub ne remplace pas un test sur une vraie Wii U.
+- `Tous les jeux` : titres utilisateur installes.
+- `Logiciels Wii U` : applications et logiciels reconnus.
+- `Homebrews` : fichiers `.wuhb` et `.rpx` trouves recursivement dans `SD:/wiiu/apps`.
+- `Favoris` et `Recents` : vues propres a Switch2 Mode.
+
+## Sons et animations
+
+Les tiroirs possedent une animation et des sons distincts pour l'ouverture et la
+fermeture. Une musique de fond originale est generee par l'application et s'arrete
+pendant l'introduction et le lancement d'un titre.
+
+## Limites alpha
+
+- Les collections restent en lecture seule.
+- Certains logiciels systeme peuvent refuser un lancement direct.
+- Un test sur une vraie Wii U reste necessaire.
