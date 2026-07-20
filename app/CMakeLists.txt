@@ -13,6 +13,8 @@ add_executable(Switch2Mode
     src/launcher.cpp
     src/wiiu_collections.cpp
     src/ui.cpp
+    src/ui_ambient.cpp
+    src/ui_categories.cpp
 )
 
 wut_create_rpx(Switch2Mode)
