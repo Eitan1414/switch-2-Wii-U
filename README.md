@@ -90,7 +90,10 @@ s'arrete pendant l'introduction et le lancement d'un titre.
 - Haut : revenir de la barre d'actions aux elements.
 
 La barre inferieure reprend les raccourcis Miiverse, Nintendo eShop, navigateur
-Internet, notifications, liste d'amis et gestion des telechargements.
+Internet, notifications, liste d'amis et gestion des telechargements. L'icone verte
+fournie correspond a **Miiverse**, le sac orange a **Nintendo eShop**, et le dossier
+beige sert de base visuelle aux collections. La Liste d'amis conserve son propre
+pictogramme separe.
 
 ## UTheme / StyleMiiU
 
