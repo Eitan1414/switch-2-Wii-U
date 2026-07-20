@@ -1,7 +1,7 @@
 # Switch2 Mode pour Wii U
 
-Switch2 Mode est un lanceur graphique pour Wii U sous Aroma. Il affiche les jeux,
-les logiciels Wii U et les homebrews, reprend les collections du menu Wii U et
+Switch2 Mode est un ecran d'accueil alternatif pour Wii U sous Aroma. Il affiche les
+jeux, les logiciels Wii U et les homebrews, reprend les collections du menu Wii U et
 utilise la video fournie comme introduction.
 
 ## Installation
@@ -14,11 +14,26 @@ SD:/wiiu/environments/aroma/plugins/Switch2ModePlugin.wps
 ```
 
 Redemarrer Aroma, ouvrir **Switch2 Mode**, puis choisir **Activer et lancer**.
-Maintenir **B** a l'arrivee sur le menu Wii U ignore le lancement automatique.
 
-## Interface v0.8.0
+## Ecran principal v0.8.1
 
-La v0.8.0 reprend le style bleu lumineux valide :
+Lorsque le mode est active, le plugin traite Switch2 Mode comme l'ecran principal :
+
+- lancement automatique immediat apres le demarrage du menu Wii U ;
+- retour automatique dans Switch2 Mode apres la fermeture d'un jeu ou logiciel ;
+- plusieurs tentatives de lancement si Aroma n'est pas encore totalement pret ;
+- maintien de **B** pendant le demarrage pour rester exceptionnellement sur le menu
+  Wii U original ;
+- mode sans echec Aroma toujours disponible avec `L + Haut + Minus`.
+
+Il s'agit d'un remplacement logiciel du shell. Aucun fichier du menu Wii U n'est
+remplace dans la NAND et aucun titre systeme n'est ecrase. Le menu officiel reste donc
+disponible comme solution de secours. Une tres courte transition du menu officiel peut
+encore etre visible selon la vitesse de la carte SD et de la console.
+
+## Interface bleue et verre
+
+L'interface reprend le style bleu lumineux valide :
 
 - cartes translucides avec effet verre ;
 - halo bleu autour de la selection ;
@@ -76,4 +91,5 @@ pendant l'introduction et le lancement d'un titre.
 
 - Les collections restent en lecture seule.
 - Certains logiciels systeme peuvent refuser un lancement direct.
+- Le remplacement est logiciel et ne modifie pas le titre systeme du menu Wii U.
 - Un test sur une vraie Wii U reste necessaire.
