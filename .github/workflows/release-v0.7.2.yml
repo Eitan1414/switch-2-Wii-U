@@ -1,0 +1,167 @@
+name: Release Switch2 Mode v0.7.2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-v0.7.2.yml"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      issues: write
+      statuses: write
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      - name: Verifier les versions et les ressources
+        id: resources
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            grep -q 'SWITCH2MODE_VERSION="0.7.2"' app/CMakeLists.txt
+            grep -q 'WUPS_PLUGIN_VERSION("0.7.2")' plugin/src/main.cpp
+            test -f app/content/intro/intro.ogg
+            test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+          } 2>&1 | tee resources.log
+
+      - name: Construire l'image de compilation
+        id: docker_build
+        if: steps.resources.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          docker build -t switch2mode-builder . 2>&1 | tee docker-build.log
+
+      - name: Compiler le WUHB, le plugin et l'archive SD
+        id: compile
+        if: steps.docker_build.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          docker run --rm \
+            -v "$PWD":/project \
+            switch2mode-builder \
+            ./scripts/build.sh 2>&1 | tee compile.log
+          test -f build/app/Switch2Mode.wuhb
+          test -f plugin/Switch2ModePlugin.wps
+          test -f dist/Switch2Mode_SD.zip
+
+      - name: Publier un rapport si la compilation echoue
+        if: steps.resources.outcome != 'success' || steps.docker_build.outcome != 'success' || steps.compile.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## Echec de la release v0.7.2"
+            echo
+            echo "- Commit : \`$GITHUB_SHA\`"
+            echo "- Execution : \`$GITHUB_RUN_ID\`"
+            echo "- Ressources : \`${{ steps.resources.outcome }}\`"
+            echo "- Image Docker : \`${{ steps.docker_build.outcome }}\`"
+            echo "- Compilation : \`${{ steps.compile.outcome }}\`"
+            for log in resources.log docker-build.log compile.log; do
+              if [[ -f "$log" ]]; then
+                echo "### $log"
+                echo '```text'
+                tail -n 240 "$log"
+                echo '```'
+              fi
+            done
+          } > failure-report.md
+          gh issue create --title "Diagnostic release v0.7.2 — run $GITHUB_RUN_ID" --body-file failure-report.md
+          exit 1
+
+      - name: Creer les notes de version
+        if: steps.compile.outcome == 'success'
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Switch2 Mode v0.7.2 — Interface et applications corrigees
+
+          Cette version corrige les textes qui depassaient et ajoute les elements absents du lanceur.
+
+          ### Affichage corrige
+          - Largeur des textes mesuree avec la vraie police Wii U
+          - Noms affiches sur deux lignes dans les cartes
+          - Points de suspension automatiques dans les barres, boutons et ecrans de lancement
+          - Labels du dock limites a leur espace disponible
+
+          ### Applications ajoutees
+          - Vue `Logiciels Wii U` pour les applications et logiciels systeme installes
+          - Vue `Homebrews` pour les fichiers `.wuhb` et `.rpx`
+          - Recherche recursive dans tous les sous-dossiers de `SD:/wiiu/apps`
+          - Exclusion des mises a jour, DLC et du menu Wii U lui-meme
+
+          ### Son
+          - Musique de fond originale et discrete generee par l'application
+          - Aucun fichier musical Nintendo utilise
+          - Fondu pendant l'introduction et le lancement d'un titre
+          - Sons et animations specifiques des tiroirs conserves
+
+          ### Installation
+          1. Telecharger `Switch2Mode_SD.zip`.
+          2. Extraire le dossier `wiiu` a la racine de la carte SD.
+          3. Remplacer les fichiers de l'ancienne version.
+          4. Demarrer Aroma et lancer `Switch2 Mode`.
+
+          > Version alpha : sauvegardez la carte SD avant installation. La sauvegarde des collections Wii U reste ouverte uniquement en lecture.
+          EOF
+
+      - name: Publier la release GitHub
+        if: steps.compile.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.7.2 >/dev/null 2>&1; then
+            gh release edit v0.7.2 \
+              --title "Switch2 Mode v0.7.2 — Interface et applications corrigees" \
+              --notes-file release-notes.md \
+              --prerelease
+            gh release upload v0.7.2 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --clobber
+          else
+            gh release create v0.7.2 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --target "$GITHUB_SHA" \
+              --title "Switch2 Mode v0.7.2 — Interface et applications corrigees" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
+
+      - name: Conserver les fichiers comme artifact
+        if: steps.compile.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Switch2Mode-v0.7.2-WiiU
+          path: |
+            dist/Switch2Mode_SD.zip
+            build/app/Switch2Mode.wuhb
+            plugin/Switch2ModePlugin.wps
+
+      - name: Enregistrer le statut final
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          description="La compilation ou la publication a echoue"
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            state=success
+            description="Release v0.7.2 compilee et publiee"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$state" \
+            -f context="release/v0.7.2" \
+            -f description="$description"
