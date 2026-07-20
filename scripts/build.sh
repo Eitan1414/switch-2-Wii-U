@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-if [[ ! -f "$ROOT/app/content/intro/frames/frame_0181.webp" ]]; then
+if [[ ! -f "$ROOT/app/content/intro/frames/frame_0276.webp" ]]; then
   "$ROOT/scripts/prepare_intro.sh"
 fi
 

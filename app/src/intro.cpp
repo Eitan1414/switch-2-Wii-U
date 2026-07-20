@@ -8,9 +8,9 @@
 #include <string>
 
 bool playIntro(AppContext& context) {
-    constexpr uint64_t durationMs = 9067;
-    constexpr int frameRate = 20;
-    constexpr int frameCount = 181;
+    constexpr uint64_t durationMs = 9200;
+    constexpr int frameRate = 30;
+    constexpr int frameCount = 276;
 
     Mix_Music* music = Mix_LoadMUS("fs:/vol/content/intro/intro.ogg");
     if (music) {
@@ -58,4 +58,3 @@ bool playIntro(AppContext& context) {
     SDL_DestroyTexture(frameTexture);
     return !skipped;
 }
-
