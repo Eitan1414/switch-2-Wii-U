@@ -141,6 +141,7 @@ void playLaunchSound(AppContext& context) {
 }
 
 void startBackgroundMusic(AppContext& context) {
+    ACTIVE_AUDIO_CONTEXT = &context;
     if (!context.backgroundLoop) return;
     if (context.backgroundChannel >= 0 && Mix_Playing(context.backgroundChannel)) return;
     context.backgroundChannel = 0;
@@ -264,6 +265,7 @@ bool initialize(AppContext& context) {
 
 void finalize(AppContext& context) {
     stopBackgroundMusic(context);
+    ACTIVE_AUDIO_CONTEXT = nullptr;
     for (auto* controller : context.controllers) SDL_GameControllerClose(controller);
     if (context.fontSmall) TTF_CloseFont(context.fontSmall);
     if (context.fontMedium) TTF_CloseFont(context.fontMedium);
