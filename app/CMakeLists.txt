@@ -42,7 +42,7 @@ target_link_directories(Switch2Mode PRIVATE
     /opt/devkitpro/wums/lib
 )
 target_compile_options(Switch2Mode PRIVATE -Wall -Wextra -Wpedantic -O2)
-target_compile_definitions(Switch2Mode PRIVATE SWITCH2MODE_VERSION="0.7.2")
+target_compile_definitions(Switch2Mode PRIVATE SWITCH2MODE_VERSION="0.7.3")
 
 target_link_libraries(Switch2Mode PRIVATE
     mocha
