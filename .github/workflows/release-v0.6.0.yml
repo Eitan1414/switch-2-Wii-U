@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      statuses: write
 
     steps:
       - name: Recuperer le projet
@@ -93,3 +94,22 @@ jobs:
             dist/Switch2Mode_SD.zip
             build/app/Switch2Mode.wuhb
             plugin/Switch2ModePlugin.wps
+
+      - name: Enregistrer le statut final sur le commit
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          description="La compilation ou la publication a échoué"
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            state=success
+            description="Release v0.6.0 compilée et publiée"
+          fi
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$state" \
+            -f context="release/v0.6.0" \
+            -f description="$description"
