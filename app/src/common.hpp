@@ -37,6 +37,12 @@ struct AppContext {
     uint64_t lastStatusRefresh = 0;
     bool acInitialized = false;
     bool actInitialized = false;
+
+    // Effet visuel et sonore reserve aux collections/tiroirs.
+    // 1 = ouverture, -1 = fermeture, 0 = inactif.
+    int drawerEffect = 0;
+    uint64_t drawerEffectStarted = 0;
+    bool drawerOpen = false;
 };
 
 struct InputState {
