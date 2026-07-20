@@ -19,11 +19,10 @@ inline CategoryArtwork categoryArtworkForName(const std::string& name) {
                         categoryArtworkForName(entry.name), (colorValue),           \
                         selected, now)
 
-#define drawRoundedPanel(contextValue, rectValue, fillValue, borderValue, widthValue) \
-    do {                                                                              \
-        drawCardShadow((contextValue), (rectValue), (widthValue) >= 5);                \
-        drawRoundedPanel((contextValue), (rectValue), (fillValue),                    \
-                         (borderValue), (widthValue));                                  \
+#define drawRoundedPanel(contextValue, rectValue, ...)                              \
+    do {                                                                             \
+        drawCardShadow((contextValue), (rectValue), false);                         \
+        drawRoundedPanel((contextValue), (rectValue), __VA_ARGS__);                 \
     } while (false)
 
 #define drawSystemDock(contextValue, selectedIndexValue)                            \
