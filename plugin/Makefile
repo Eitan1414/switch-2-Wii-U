@@ -10,6 +10,7 @@ TOPDIR ?= $(CURDIR)
 include $(DEVKITPRO)/wups/share/wups_rules
 
 WUT_ROOT := $(DEVKITPRO)/wut
+WUMS_ROOT := $(DEVKITPRO)/wums
 
 TARGET      := Switch2ModePlugin
 BUILD       := build
@@ -23,7 +24,7 @@ CXXFLAGS    := $(CFLAGS) -std=c++20
 ASFLAGS     := -g $(ARCH)
 LDFLAGS     := -g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) $(WUPSSPECS)
 LIBS        := -lrpxloader -lwups -lwut
-LIBDIRS     := $(PORTLIBS) $(DEVKITPRO)/wups $(WUT_ROOT) $(WUT_ROOT)/usr
+LIBDIRS     := $(PORTLIBS) $(DEVKITPRO)/wups $(WUT_ROOT) $(WUT_ROOT)/usr $(WUMS_ROOT)
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 export OUTPUT := $(CURDIR)/$(TARGET)
@@ -63,4 +64,3 @@ $(OFILES_SRC): $(HFILES_BIN)
 	@$(bin2o)
 -include $(DEPENDS)
 endif
-
