@@ -20,11 +20,11 @@ jobs:
 
       - name: Preparer l'intro fournie
         run: |
-          if [[ ! -f app/content/intro/frames/frame_0181.webp ]]; then
+          if [[ ! -f app/content/intro/frames/frame_0276.webp ]]; then
             ./scripts/prepare_intro.sh
           fi
           test -f app/content/intro/intro.ogg
-          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 181
+          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
 
       - name: Construire l'image de compilation
         run: docker build -t switch2mode-builder .

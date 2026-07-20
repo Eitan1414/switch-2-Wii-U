@@ -8,7 +8,7 @@ video fournie comme introduction. Le projet ne modifie aucun fichier de la NAND.
 
 - `Switch2Mode.wuhb` : application graphique et lanceur de jeux.
 - `Switch2ModePlugin.wps` : relance automatiquement le mode lorsqu'il est actif.
-- `Boot_WiiU_Switch2_16x9_720p_Final.mp4` : video source fournie par l'utilisateur.
+- `Boot_WiiU_Switch2_16x9_Corrige_30FPS.mp4` : video source corrigee fournie par l'utilisateur.
 
 ## Installation
 
@@ -77,8 +77,8 @@ docker build -t switch2mode-builder .
 docker run --rm -v "$PWD":/project switch2mode-builder ./scripts/build.sh
 ```
 
-La video MP4 originale est transformee pendant la preparation des ressources en
-181 images WebP de 960x540 a 20 images/s et une piste Ogg. Cela evite d'embarquer
+La video MP4 corrigee est transformee pendant la preparation des ressources en
+276 images WebP de 960x540 a 30 images/s et une piste Ogg. Cela evite d'embarquer
 un decodeur H.264 lourd dans l'application Wii U.
 
 ## Limites de cette premiere version
