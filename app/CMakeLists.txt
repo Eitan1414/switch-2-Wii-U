@@ -31,7 +31,13 @@ pkg_check_modules(SDL2_image REQUIRED IMPORTED_TARGET SDL2_image)
 pkg_check_modules(SDL2_mixer REQUIRED IMPORTED_TARGET SDL2_mixer)
 pkg_check_modules(SDL2_ttf REQUIRED IMPORTED_TARGET SDL2_ttf)
 
-target_include_directories(Switch2Mode PRIVATE src)
+target_include_directories(Switch2Mode PRIVATE
+    src
+    /opt/devkitpro/wut/usr/include
+)
+target_link_directories(Switch2Mode PRIVATE
+    /opt/devkitpro/wut/usr/lib
+)
 target_compile_options(Switch2Mode PRIVATE -Wall -Wextra -Wpedantic -O2)
 target_compile_definitions(Switch2Mode PRIVATE SWITCH2MODE_VERSION="0.6.0")
 
