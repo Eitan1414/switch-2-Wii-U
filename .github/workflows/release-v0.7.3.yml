@@ -28,6 +28,8 @@ jobs:
             grep -q 'SWITCH2MODE_VERSION="0.7.3"' app/CMakeLists.txt
             grep -q 'WUPS_PLUGIN_VERSION("0.7.3")' plugin/src/main.cpp
             test -f app/content/intro/intro.ogg
+            test -f app/src/ui_categories.cpp
+            test -f app/src/ui_ambient.cpp
             test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
           } 2>&1 | tee resources.log
 
@@ -82,24 +84,35 @@ jobs:
         if: steps.compile.outcome == 'success'
         run: |
           cat > release-notes.md <<'EOF'
-          ## Switch2 Mode v0.7.3 — Icones et interface corrigees
+          ## Switch2 Mode v0.7.3 — Interface avancee
 
-          Cette version regroupe les corrections d'affichage et les nouvelles categories, puis remplace les pictogrammes generiques par les visuels fournis.
+          Cette compilation regroupe les corrections d'affichage, les applications absentes, la musique de fond et la nouvelle identite visuelle des categories.
 
-          ### Icones corrigees
-          - L'icone verte fournie est maintenant utilisee pour Miiverse
-          - Le sac orange fourni represente Nintendo eShop
-          - Le dossier beige fourni sert de base visuelle aux collections
-          - La couleur de chaque collection Wii U reste visible sur son contour
-          - La Liste d'amis conserve sa propre icone distincte
+          ### Icones et categories
+          - L'icone verte fournie correspond a Miiverse
+          - Le sac orange fourni correspond au Nintendo eShop
+          - Le dossier beige sert de base aux collections du menu Wii U
+          - Illustration en grille pour `Tous les jeux`
+          - Illustration de fenetre d'applications pour `Logiciels Wii U`
+          - Illustration de fiole pour `Homebrews`
+          - Coeur anime pour `Favoris`
+          - Horloge pour `Recents`
+          - La Liste d'amis garde son propre pictogramme
 
-          ### Affichage et contenu
-          - Textes mesures selon leur largeur reelle et limites a leur zone
-          - Noms longs affiches sur deux lignes dans les cartes
+          ### Interface et effets
+          - Textes mesures selon leur largeur reelle
+          - Noms longs sur deux lignes avec points de suspension
+          - Ombres douces et profondeur sur les cartes
+          - Leger mouvement des illustrations selectionnees
+          - Indicateur de position sous le carrousel
+          - Animations et sons des tiroirs conserves
+
+          ### Contenu et optimisation
           - Vue `Logiciels Wii U` pour les applications installees
           - Vue `Homebrews` avec recherche recursive dans `SD:/wiiu/apps`
-          - Musique de fond originale et discrete generee par l'application
-          - Animations et sons specifiques des tiroirs conserves
+          - Chargement des icones de jeux uniquement lorsqu'elles deviennent visibles
+          - Les illustrations de categories sont vectorielles et n'ajoutent pas de grosses textures en memoire
+          - Musique de fond originale generee par l'application
 
           ### Installation
           1. Telecharger `Switch2Mode_SD.zip`.
@@ -117,7 +130,7 @@ jobs:
         run: |
           if gh release view v0.7.3 >/dev/null 2>&1; then
             gh release edit v0.7.3 \
-              --title "Switch2 Mode v0.7.3 — Icones et interface corrigees" \
+              --title "Switch2 Mode v0.7.3 — Interface avancee" \
               --notes-file release-notes.md \
               --prerelease
             gh release upload v0.7.3 \
@@ -131,7 +144,7 @@ jobs:
               build/app/Switch2Mode.wuhb \
               plugin/Switch2ModePlugin.wps \
               --target "$GITHUB_SHA" \
-              --title "Switch2 Mode v0.7.3 — Icones et interface corrigees" \
+              --title "Switch2 Mode v0.7.3 — Interface avancee" \
               --notes-file release-notes.md \
               --prerelease
           fi
