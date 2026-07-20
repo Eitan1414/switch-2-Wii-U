@@ -14,7 +14,7 @@
 
 WUPS_PLUGIN_NAME("Switch2 Mode Bootstrap");
 WUPS_PLUGIN_DESCRIPTION("Relance le lanceur Switch2 Mode depuis le menu Wii U.");
-WUPS_PLUGIN_VERSION("0.7.0");
+WUPS_PLUGIN_VERSION("0.7.1");
 WUPS_PLUGIN_AUTHOR("Eitan1414");
 WUPS_PLUGIN_LICENSE("GPLv3");
 
