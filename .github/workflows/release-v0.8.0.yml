@@ -1,0 +1,124 @@
+name: Release Switch2 Mode v0.8.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-v0.8.0.yml"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      statuses: write
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      - name: Verifier la version et les ressources
+        run: |
+          grep -q 'SWITCH2MODE_VERSION="0.8.0"' app/CMakeLists.txt
+          grep -q 'WUPS_PLUGIN_VERSION("0.8.0")' plugin/src/main.cpp
+          test -f app/content/intro/intro.ogg
+          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+
+      - name: Construire l image de compilation
+        run: docker build -t switch2mode-builder .
+
+      - name: Compiler le WUHB le WPS et l archive SD
+        run: |
+          docker run --rm \
+            -v "$PWD":/project \
+            switch2mode-builder \
+            ./scripts/build.sh
+          test -f build/app/Switch2Mode.wuhb
+          test -f plugin/Switch2ModePlugin.wps
+          test -f dist/Switch2Mode_SD.zip
+
+      - name: Creer les notes de version
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Switch2 Mode v0.8.0 — Interface verre lumineuse
+
+          Cette version reprend le style bleu lumineux valide tout en conservant UTheme.
+
+          ### Nouvelle interface
+          - Cartes translucides avec effet verre, reflets et ombres
+          - Halo bleu anime autour de la selection
+          - Fond bleu avec particules legeres sans textures lourdes
+          - Dock inferieur translucide et indicateur de position
+          - Console et GamePad pour Tous les jeux
+          - Sac orange pour Logiciels Wii U
+          - Dossier beige avec contour colore pour les collections
+          - Fiole Homebrew, etoile Favoris et horloge Recents
+
+          ### UTheme conserve
+          - UTheme reste le mode de fond par defaut
+          - Le theme actif reste visible sous la couche bleue translucide
+          - Le fond personnalise reste disponible dans SD:/wiiu/switch2mode/background.png
+
+          ### Fonctionnalites conservees
+          - Collections Wii U en lecture seule
+          - Jeux, logiciels Wii U et homebrews recursifs
+          - Musique de fond, sons et animations des tiroirs
+          - Introduction corrigee et relance automatique Aroma
+
+          ### Installation
+          Telecharger `Switch2Mode_SD.zip`, puis extraire son dossier `wiiu` a la racine de la carte SD en remplacant les anciens fichiers.
+
+          > Version alpha : sauvegardez la carte SD et testez d'abord avec le plugin desactive si vous preferez lancer le WUHB manuellement.
+          EOF
+
+      - name: Publier la release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.8.0 >/dev/null 2>&1; then
+            gh release edit v0.8.0 \
+              --title "Switch2 Mode v0.8.0 — Interface verre lumineuse" \
+              --notes-file release-notes.md \
+              --prerelease
+            gh release upload v0.8.0 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --clobber
+          else
+            gh release create v0.8.0 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --target "$GITHUB_SHA" \
+              --title "Switch2 Mode v0.8.0 — Interface verre lumineuse" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
+
+      - name: Conserver les fichiers compiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Switch2Mode-v0.8.0-WiiU
+          path: |
+            dist/Switch2Mode_SD.zip
+            build/app/Switch2Mode.wuhb
+            plugin/Switch2ModePlugin.wps
+
+      - name: Enregistrer le statut final
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          description="La compilation ou la publication a echoue"
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            state=success
+            description="Release v0.8.0 compilee et publiee"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="$state" \
+            -f context="release/v0.8.0" \
+            -f description="$description"
