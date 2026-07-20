@@ -18,6 +18,9 @@ enum class CategoryArtwork {
 
 void drawAmbientBackground(AppContext& context, SDL_Color accent, uint64_t ticks);
 void drawCardShadow(AppContext& context, const SDL_Rect& card, bool selected);
+void drawGlassPanel(AppContext& context, const SDL_Rect& rect,
+                    SDL_Color fill, SDL_Color border, int borderWidth = 2);
+void drawGlassDock(AppContext& context);
 void drawCategoryArtwork(AppContext& context, const SDL_Rect& rect,
                          CategoryArtwork artwork, SDL_Color accent,
                          bool selected, uint64_t ticks);
