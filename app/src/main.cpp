@@ -16,6 +16,7 @@
 #include <vpad/input.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 InputState pollInput(AppContext& context) {
@@ -140,15 +141,17 @@ void playLaunchSound(AppContext& context) {
 }
 
 void startBackgroundMusic(AppContext& context) {
-    if (!context.backgroundMusic || Mix_PlayingMusic()) return;
-    Mix_VolumeMusic(MIX_MAX_VOLUME / 5);
-    Mix_FadeInMusic(context.backgroundMusic, -1, 700);
+    if (!context.backgroundLoop) return;
+    if (context.backgroundChannel >= 0 && Mix_Playing(context.backgroundChannel)) return;
+    context.backgroundChannel = 0;
+    Mix_Volume(context.backgroundChannel, MIX_MAX_VOLUME / 6);
+    Mix_FadeInChannel(context.backgroundChannel, context.backgroundLoop, -1, 700);
 }
 
-void stopBackgroundMusic(int fadeMs) {
-    if (!Mix_PlayingMusic()) return;
-    if (fadeMs > 0) Mix_FadeOutMusic(fadeMs);
-    else Mix_HaltMusic();
+void stopBackgroundMusic(AppContext& context, int fadeMs) {
+    if (context.backgroundChannel < 0 || !Mix_Playing(context.backgroundChannel)) return;
+    if (fadeMs > 0) Mix_FadeOutChannel(context.backgroundChannel, fadeMs);
+    else Mix_HaltChannel(context.backgroundChannel);
 }
 
 float easeOutCubic(float value) {
@@ -158,6 +161,8 @@ float easeOutCubic(float value) {
 }
 
 namespace {
+
+constexpr double PI = 3.14159265358979323846;
 
 TTF_Font* openSystemFont(int size) {
     void* fontData = nullptr;
@@ -169,13 +174,52 @@ TTF_Font* openSystemFont(int size) {
     return stream ? TTF_OpenFontRW(stream, 1, size) : nullptr;
 }
 
+void generateBackgroundLoop(AppContext& context) {
+    constexpr int sampleRate = 48000;
+    constexpr int channels = 2;
+    constexpr int durationSeconds = 8;
+    constexpr int frameCount = sampleRate * durationSeconds;
+    constexpr std::array<double, 4> padFrequencies{196.0, 247.0, 294.0, 370.0};
+    constexpr std::array<double, 4> bellFrequencies{392.0, 494.0, 587.0, 494.0};
+
+    context.backgroundPcm.resize(static_cast<std::size_t>(frameCount * channels));
+    for (int frame = 0; frame < frameCount; ++frame) {
+        const double time = static_cast<double>(frame) / sampleRate;
+        double pad = 0.0;
+        for (std::size_t index = 0; index < padFrequencies.size(); ++index) {
+            pad += std::sin(2.0 * PI * padFrequencies[index] * time + index * 0.42) * 0.13;
+            pad += std::sin(2.0 * PI * padFrequencies[index] * 2.0 * time + index * 0.19) * 0.018;
+        }
+
+        const int bellIndex = static_cast<int>(time / 2.0) % 4;
+        const double beatPosition = std::fmod(time, 2.0);
+        const double bellEnvelope = std::exp(-4.8 * beatPosition);
+        const double bell = std::sin(2.0 * PI * bellFrequencies[bellIndex] * time) *
+                            bellEnvelope * 0.12;
+        const double breathing = 0.82 + 0.08 * std::sin(2.0 * PI * time / 8.0);
+        const double pan = 0.5 + 0.16 * std::sin(2.0 * PI * time / 8.0);
+        const double signal = (pad * breathing + bell) * 0.42;
+
+        const double left = std::clamp(signal * (1.0 - pan * 0.35), -1.0, 1.0);
+        const double right = std::clamp(signal * (0.65 + pan * 0.35), -1.0, 1.0);
+        context.backgroundPcm[static_cast<std::size_t>(frame * 2)] =
+            static_cast<int16_t>(left * 32767.0);
+        context.backgroundPcm[static_cast<std::size_t>(frame * 2 + 1)] =
+            static_cast<int16_t>(right * 32767.0);
+    }
+
+    context.backgroundLoop = Mix_QuickLoad_RAW(
+        reinterpret_cast<Uint8*>(context.backgroundPcm.data()),
+        static_cast<Uint32>(context.backgroundPcm.size() * sizeof(int16_t)));
+}
+
 bool initialize(AppContext& context) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_GAMECONTROLLER) != 0) return false;
     if ((IMG_Init(IMG_INIT_PNG | IMG_INIT_JPG | IMG_INIT_WEBP) & IMG_INIT_WEBP) == 0) return false;
     if (TTF_Init() != 0) return false;
     Mix_Init(MIX_INIT_OGG);
-    if (Mix_OpenAudioDevice(48000, MIX_DEFAULT_FORMAT, 2, 1024, nullptr,
-                            SDL_AUDIO_ALLOW_ANY_CHANGE) != 0) return false;
+    if (Mix_OpenAudioDevice(48000, AUDIO_S16SYS, 2, 1024, nullptr, 0) != 0) return false;
+    Mix_ReserveChannels(1);
 
     context.window = SDL_CreateWindow("Switch2 Mode", SDL_WINDOWPOS_UNDEFINED,
                                       SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT,
@@ -192,7 +236,7 @@ bool initialize(AppContext& context) {
     context.soundBack = Mix_LoadWAV("fs:/vol/content/sound/back.ogg");
     context.soundFolder = Mix_LoadWAV("fs:/vol/content/sound/folder.ogg");
     context.soundLaunch = Mix_LoadWAV("fs:/vol/content/sound/launch.ogg");
-    context.backgroundMusic = Mix_LoadMUS("fs:/vol/content/sound/background.ogg");
+    generateBackgroundLoop(context);
 
     context.acInitialized = NNResult_IsSuccess(ACInitialize());
     context.actInitialized = nn::act::Initialize().IsSuccess();
@@ -219,7 +263,7 @@ bool initialize(AppContext& context) {
 }
 
 void finalize(AppContext& context) {
-    stopBackgroundMusic();
+    stopBackgroundMusic(context);
     for (auto* controller : context.controllers) SDL_GameControllerClose(controller);
     if (context.fontSmall) TTF_CloseFont(context.fontSmall);
     if (context.fontMedium) TTF_CloseFont(context.fontMedium);
@@ -229,7 +273,8 @@ void finalize(AppContext& context) {
     if (context.soundBack) Mix_FreeChunk(context.soundBack);
     if (context.soundFolder) Mix_FreeChunk(context.soundFolder);
     if (context.soundLaunch) Mix_FreeChunk(context.soundLaunch);
-    if (context.backgroundMusic) Mix_FreeMusic(context.backgroundMusic);
+    if (context.backgroundLoop) Mix_FreeChunk(context.backgroundLoop);
+    context.backgroundPcm.clear();
     if (context.actInitialized) nn::act::Finalize();
     if (context.acInitialized) ACFinalize();
     SDL_DestroyRenderer(context.renderer);
