@@ -1,0 +1,1 @@
+Diagnostic temporaire de la compilation de Switch2 Mode v0.6.0.
