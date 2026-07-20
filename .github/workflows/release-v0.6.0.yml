@@ -1,0 +1,95 @@
+name: Release Switch2 Mode v0.6.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-v0.6.0.yml"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      - name: Verifier les ressources de l'intro
+        run: |
+          test -f app/content/intro/intro.ogg
+          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+
+      - name: Construire l'image de compilation
+        run: docker build -t switch2mode-builder .
+
+      - name: Compiler le WUHB, le plugin et l'archive SD
+        run: |
+          docker run --rm \
+            -v "$PWD":/project \
+            switch2mode-builder \
+            ./scripts/build.sh
+          test -f build/app/Switch2Mode.wuhb
+          test -f plugin/Switch2ModePlugin.wps
+          test -f dist/Switch2Mode_SD.zip
+
+      - name: Creer les notes de version
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Switch2 Mode v0.6.0 — Alpha
+
+          Première version publiable du menu Wii U inspiré de l'interface Switch 2.
+
+          ### Inclus
+          - Application graphique Wii U au format `.wuhb`
+          - Plugin Aroma au format `.wps`
+          - Archive SD prête à copier
+          - Intro corrigée en 16:9, 30 FPS, avec 276 images synchronisées et piste audio OGG
+          - Navigation horizontale, animations de glissement et lancement des jeux
+          - Catégories et raccourcis inspirés des applications système Wii U
+          - Compatibilité Wii U GamePad et manette Wii U Pro
+
+          ### Installation recommandée
+          1. Télécharger `Switch2Mode_SD.zip`.
+          2. Extraire son dossier `wiiu` à la racine de la carte SD.
+          3. Démarrer la Wii U avec Aroma.
+          4. Lancer `Switch2 Mode` depuis l'Homebrew Launcher.
+
+          > Version alpha : faites une sauvegarde de votre carte SD avant installation. Le projet ne modifie pas la NAND.
+          EOF
+
+      - name: Publier ou actualiser la release GitHub
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.6.0 >/dev/null 2>&1; then
+            gh release edit v0.6.0 \
+              --title "Switch2 Mode v0.6.0 — Alpha" \
+              --notes-file release-notes.md \
+              --prerelease
+            gh release upload v0.6.0 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --clobber
+          else
+            gh release create v0.6.0 \
+              dist/Switch2Mode_SD.zip \
+              build/app/Switch2Mode.wuhb \
+              plugin/Switch2ModePlugin.wps \
+              --target "$GITHUB_SHA" \
+              --title "Switch2 Mode v0.6.0 — Alpha" \
+              --notes-file release-notes.md \
+              --prerelease
+          fi
+
+      - name: Conserver aussi les fichiers comme artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Switch2Mode-v0.6.0-WiiU
+          path: |
+            dist/Switch2Mode_SD.zip
+            build/app/Switch2Mode.wuhb
+            plugin/Switch2ModePlugin.wps
