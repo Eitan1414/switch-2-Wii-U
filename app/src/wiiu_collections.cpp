@@ -137,24 +137,38 @@ bool fileExists(const std::filesystem::path& path) {
     return std::filesystem::is_regular_file(path, error);
 }
 
+uint32_t menuUserDirectoryId(uint32_t persistentId) {
+    return 0x80000000u | persistentId;
+}
+
 std::filesystem::path findAromaRedirect(uint32_t persistentId) {
     const std::filesystem::path base =
         "fs:/vol/external01/wiiu/homebrew_on_menu_plugin";
-    const std::string user = hex8(persistentId);
+    const std::string user = hex8(menuUserDirectoryId(persistentId));
+    const std::string legacyUser = hex8(persistentId);
     std::error_code error;
 
     if (std::filesystem::is_directory(base, error)) {
         for (const auto& directory : std::filesystem::directory_iterator(base, error)) {
             if (error) break;
             if (!directory.is_directory(error)) continue;
+
             const auto candidate = directory.path() / "save" / user /
                                    "BaristaAccountSaveFile.dat";
             if (fileExists(candidate)) return candidate;
+
+            const auto legacyCandidate = directory.path() / "save" / legacyUser /
+                                         "BaristaAccountSaveFile.dat";
+            if (fileExists(legacyCandidate)) return legacyCandidate;
         }
     }
 
-    const auto legacy = base / "save" / user / "BaristaAccountSaveFile.dat";
-    return fileExists(legacy) ? legacy : std::filesystem::path{};
+    const auto legacyBase = base / "save";
+    const auto candidate = legacyBase / user / "BaristaAccountSaveFile.dat";
+    if (fileExists(candidate)) return candidate;
+
+    const auto oldCandidate = legacyBase / legacyUser / "BaristaAccountSaveFile.dat";
+    return fileExists(oldCandidate) ? oldCandidate : std::filesystem::path{};
 }
 
 std::filesystem::path findNativeSave(uint32_t persistentId) {
@@ -162,9 +176,14 @@ std::filesystem::path findNativeSave(uint32_t persistentId) {
         _SYSGetSystemApplicationTitleId(SYSTEM_APP_ID_WII_U_MENU);
     if ((menuTitleId >> 32) != 0x00050010ULL) return {};
 
-    return std::filesystem::path("fs:/vol/storage_mlc01/usr/save/00050010") /
-           hex8(static_cast<uint32_t>(menuTitleId)) / "user" /
-           hex8(persistentId) / "BaristaAccountSaveFile.dat";
+    const auto base = std::filesystem::path("fs:/vol/storage_mlc01/usr/save/00050010") /
+                      hex8(static_cast<uint32_t>(menuTitleId)) / "user";
+    const auto candidate = base / hex8(menuUserDirectoryId(persistentId)) /
+                           "BaristaAccountSaveFile.dat";
+    if (fileExists(candidate)) return candidate;
+
+    const auto legacy = base / hex8(persistentId) / "BaristaAccountSaveFile.dat";
+    return fileExists(legacy) ? legacy : std::filesystem::path{};
 }
 
 void appendUnique(std::vector<uint64_t>& output, uint64_t titleId) {
