@@ -13,8 +13,8 @@
 #include <thread>
 
 WUPS_PLUGIN_NAME("Switch2 Mode Bootstrap");
-WUPS_PLUGIN_DESCRIPTION("Relance le lanceur Switch2 Mode depuis le menu Wii U.");
-WUPS_PLUGIN_VERSION("0.8.0");
+WUPS_PLUGIN_DESCRIPTION("Utilise Switch2 Mode comme ecran d'accueil principal.");
+WUPS_PLUGIN_VERSION("0.8.1");
 WUPS_PLUGIN_AUTHOR("Eitan1414");
 WUPS_PLUGIN_LICENSE("GPLv3");
 
@@ -29,6 +29,11 @@ constexpr const char* CONFIG_PATH = "fs:/vol/external01/wiiu/switch2mode/config.
 constexpr const char* INTRO_PENDING_PATH = "fs:/vol/external01/wiiu/switch2mode/intro.pending";
 constexpr const char* APP_FILE_PATH = "fs:/vol/external01/wiiu/apps/Switch2Mode.wuhb";
 constexpr const char* APP_LAUNCH_PATH = "wiiu/apps/Switch2Mode.wuhb";
+
+constexpr int BOOT_GUARD_STEPS = 12;
+constexpr int BOOT_GUARD_STEP_MS = 25;
+constexpr int LAUNCH_RETRY_COUNT = 8;
+constexpr int LAUNCH_RETRY_DELAY_MS = 120;
 
 std::atomic_bool launchThreadActive{false};
 bool firstMenuStart = true;
@@ -53,23 +58,38 @@ bool bypassHeld() {
     return read > 0 && error == VPAD_READ_SUCCESS && (status.hold & VPAD_BUTTON_B);
 }
 
-void launchAfterMenuStarts() {
-    launchThreadActive = true;
-    OSSleepTicks(OSMillisecondsToTicks(900));
-
-    if (!isEnabled() || bypassHeld()) {
-        launchThreadActive = false;
-        return;
+bool waitForFastBootWindow() {
+    for (int step = 0; step < BOOT_GUARD_STEPS; ++step) {
+        if (!isEnabled() || bypassHeld()) return false;
+        OSSleepTicks(OSMillisecondsToTicks(BOOT_GUARD_STEP_MS));
     }
+    return true;
+}
 
+bool appExists() {
     FILE* file = std::fopen(APP_FILE_PATH, "rb");
-    if (!file) {
+    if (!file) return false;
+    std::fclose(file);
+    return true;
+}
+
+void launchPrimaryShell() {
+    if (!waitForFastBootWindow() || !appExists()) {
         launchThreadActive = false;
         return;
     }
-    std::fclose(file);
 
-    RPXLoader_LaunchHomebrew(APP_LAUNCH_PATH);
+    for (int attempt = 0; attempt < LAUNCH_RETRY_COUNT; ++attempt) {
+        if (!isEnabled() || bypassHeld()) break;
+
+        if (RPXLoader_LaunchHomebrew(APP_LAUNCH_PATH) == RPX_LOADER_RESULT_SUCCESS) {
+            launchThreadActive = false;
+            return;
+        }
+
+        OSSleepTicks(OSMillisecondsToTicks(LAUNCH_RETRY_DELAY_MS));
+    }
+
     launchThreadActive = false;
 }
 
@@ -80,7 +100,10 @@ INITIALIZE_PLUGIN() {
 }
 
 ON_APPLICATION_START() {
-    if (isMenu(OSGetTitleID()) && firstMenuStart) {
+    const bool menuStarted = isMenu(OSGetTitleID());
+    if (!menuStarted) return;
+
+    if (firstMenuStart) {
         firstMenuStart = false;
         if (isEnabled()) {
             if (FILE* pending = std::fopen(INTRO_PENDING_PATH, "wb")) {
@@ -91,9 +114,8 @@ ON_APPLICATION_START() {
     }
 
     bool expected = false;
-    if (isMenu(OSGetTitleID()) && isEnabled() &&
-        launchThreadActive.compare_exchange_strong(expected, true)) {
-        std::thread(launchAfterMenuStarts).detach();
+    if (isEnabled() && launchThreadActive.compare_exchange_strong(expected, true)) {
+        std::thread(launchPrimaryShell).detach();
     }
 }
 
