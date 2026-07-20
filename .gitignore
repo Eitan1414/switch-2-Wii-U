@@ -1,0 +1,10 @@
+build/
+dist/
+app/content/intro/frames/
+app/content/intro/intro.ogg
+app/meta/*.png
+*.wps
+*.wuhb
+*.rpx
+*.elf
+

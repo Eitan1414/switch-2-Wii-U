@@ -1,0 +1,43 @@
+name: Build Switch2 Mode
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "README.md"
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Recuperer le projet
+        uses: actions/checkout@v4
+
+      - name: Preparer l'intro fournie
+        run: |
+          ./scripts/prepare_intro.sh
+          test -f app/content/intro/intro.ogg
+          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 181
+
+      - name: Construire l'image de compilation
+        run: docker build -t switch2mode-builder .
+
+      - name: Compiler WUHB et WPS
+        run: |
+          docker run --rm \
+            -v "$PWD":/project \
+            switch2mode-builder \
+            ./scripts/build.sh
+
+      - name: Publier les fichiers compiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Switch2Mode-WiiU
+          path: |
+            dist/Switch2Mode_SD.zip
+            build/app/Switch2Mode.wuhb
+            plugin/Switch2ModePlugin.wps
