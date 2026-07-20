@@ -1,7 +1,7 @@
 # Switch2 Mode pour Wii U
 
 Switch2 Mode est un lanceur graphique pour Wii U sous Aroma. Il affiche les jeux
-horizontalement, propose des dossiers, des transitions glissees et utilise la
+horizontalement, propose des tiroirs de rangement, des transitions glissees et utilise la
 video fournie comme introduction. Le projet ne modifie aucun fichier de la NAND.
 
 ## Contenu
@@ -30,9 +30,9 @@ disponible avec `L + Haut + Minus` pendant le demarrage.
 
 ## Commandes
 
-- Gauche / Droite : parcourir les jeux et dossiers.
-- A : ouvrir ou lancer.
-- B : fermer un dossier ou ouvrir le panneau du mode.
+- Gauche / Droite : parcourir les jeux et les tiroirs de rangement.
+- A : ouvrir un tiroir ou lancer le jeu selectionne.
+- B : refermer un tiroir ou ouvrir le panneau du mode.
 - X : ouvrir les options.
 - Y : ajouter ou retirer le jeu selectionne des favoris.
 - Plus : ouvrir les options.
@@ -48,7 +48,7 @@ disponibles sur la console (Nintendo ou remplacement communautaire).
 
 La barre superieure affiche le nom du profil actif, l'etat Wi-Fi, l'heure et le
 niveau de batterie reel du GamePad. Cinq sons originaux accompagnent le
-deplacement, la validation, le retour, l'ouverture des dossiers et le lancement.
+deplacement, la validation, le retour, l'ouverture des tiroirs et le lancement.
 
 Au lancement d'un jeu ou d'un homebrew, un carillon numerique ascendant original
 accompagne son icone qui se recentre et s'agrandit. Le menu s'assombrit, puis un
@@ -83,7 +83,9 @@ un decodeur H.264 lourd dans l'application Wii U.
 
 ## Limites de cette premiere version
 
-- Les dossiers fournis sont `Tous les jeux`, `Favoris` et `Recents`.
+- Les trois tiroirs de rangement fournis sont `Tous les jeux`, `Favoris` et `Recents`.
+- Ces tiroirs sont des collections visuelles servant a organiser les jeux dans
+  l'interface. Ce ne sont pas des repertoires crees sur la carte SD.
 - Les titres Wii U installes et les homebrews `.wuhb`/`.rpx` du dossier
   `SD:/wiiu/apps` sont listes.
 - Les apercus UTheme servent de fond lorsque le theme ne fournit pas directement
