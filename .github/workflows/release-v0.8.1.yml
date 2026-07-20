@@ -1,0 +1,79 @@
+name: Release Switch2 Mode v0.8.1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-v0.8.1.yml"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      statuses: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verifier
+        run: |
+          grep -q 'SWITCH2MODE_VERSION="0.8.1"' app/CMakeLists.txt
+          grep -q 'WUPS_PLUGIN_VERSION("0.8.1")' plugin/src/main.cpp
+          test -f app/content/intro/intro.ogg
+          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+
+      - name: Construire
+        run: |
+          docker build -t switch2mode-builder .
+          docker run --rm -v "$PWD":/project switch2mode-builder ./scripts/build.sh
+          test -f dist/Switch2Mode_SD.zip
+
+      - name: Notes
+        run: |
+          cat > release-notes.md <<'EOF'
+          ## Switch2 Mode v0.8.1
+
+          - Switch2 Mode devient l'ecran d'accueil visible quand le mode est actif.
+          - Relance automatique apres un jeu ou un logiciel.
+          - Demarrage plus rapide avec nouvelles tentatives si Aroma n'est pas pret.
+          - Maintenir B pour conserver le menu Wii U officiel.
+          - UTheme et StyleMiiU restent compatibles.
+          - Aucun fichier systeme ni titre NAND n'est remplace.
+
+          Installez `Switch2Mode_SD.zip` a la racine de la carte SD.
+          EOF
+
+      - name: Publier
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v0.8.1 >/dev/null 2>&1; then
+            gh release edit v0.8.1 --title "Switch2 Mode v0.8.1" --notes-file release-notes.md --prerelease
+            gh release upload v0.8.1 dist/Switch2Mode_SD.zip build/app/Switch2Mode.wuhb plugin/Switch2ModePlugin.wps --clobber
+          else
+            gh release create v0.8.1 dist/Switch2Mode_SD.zip build/app/Switch2Mode.wuhb plugin/Switch2ModePlugin.wps --target "$GITHUB_SHA" --title "Switch2 Mode v0.8.1" --notes-file release-notes.md --prerelease
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Switch2Mode-v0.8.1-WiiU
+          path: |
+            dist/Switch2Mode_SD.zip
+            build/app/Switch2Mode.wuhb
+            plugin/Switch2ModePlugin.wps
+
+      - name: Statut
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          state=failure
+          description="Echec de la release v0.8.1"
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            state=success
+            description="Release v0.8.1 publiee"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" -f state="$state" -f context="release/v0.8.1" -f description="$description"
