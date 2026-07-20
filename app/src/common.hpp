@@ -30,7 +30,9 @@ struct AppContext {
     Mix_Chunk* soundBack = nullptr;
     Mix_Chunk* soundFolder = nullptr;
     Mix_Chunk* soundLaunch = nullptr;
-    Mix_Music* backgroundMusic = nullptr;
+    Mix_Chunk* backgroundLoop = nullptr;
+    std::vector<int16_t> backgroundPcm;
+    int backgroundChannel = -1;
     std::vector<SDL_GameController*> controllers;
     std::string profileName = "Profil Wii U";
     bool wifiConnected = false;
@@ -65,5 +67,5 @@ void playBackSound(AppContext& ctx);
 void playFolderSound(AppContext& ctx);
 void playLaunchSound(AppContext& ctx);
 void startBackgroundMusic(AppContext& ctx);
-void stopBackgroundMusic(int fadeMs = 0);
+void stopBackgroundMusic(AppContext& ctx, int fadeMs = 0);
 float easeOutCubic(float value);
