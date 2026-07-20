@@ -2,6 +2,7 @@
 
 #include "intro.hpp"
 #include "ui.hpp"
+#include "wiiu_collections.hpp"
 
 #include <SDL2/SDL_image.h>
 
@@ -26,6 +27,7 @@
 namespace {
 
 enum class EntryKind {
+    FolderWiiU,
     FolderAll,
     FolderFavorites,
     FolderRecent,
@@ -40,12 +42,43 @@ struct Entry {
     std::filesystem::path launchPath;
     std::filesystem::path iconPath;
     SDL_Texture* icon = nullptr;
+    uint32_t folderId = 0;
+    uint8_t folderColor = 0;
+    std::vector<uint64_t> folderTitleIds;
 };
 
 struct BackgroundTexture {
     SDL_Texture* texture = nullptr;
     ~BackgroundTexture() { SDL_DestroyTexture(texture); }
 };
+
+bool isFolderEntry(const Entry& entry) {
+    return entry.kind == EntryKind::FolderWiiU ||
+           entry.kind == EntryKind::FolderAll ||
+           entry.kind == EntryKind::FolderFavorites ||
+           entry.kind == EntryKind::FolderRecent;
+}
+
+Entry makeSmartFolder(EntryKind kind, const std::string& name) {
+    Entry entry;
+    entry.kind = kind;
+    entry.name = name;
+    return entry;
+}
+
+SDL_Color wiiUFolderColor(uint8_t color) {
+    static constexpr std::array<SDL_Color, 8> colors{{
+        {0, 174, 221, 255},
+        {38, 184, 104, 255},
+        {241, 195, 44, 255},
+        {239, 137, 40, 255},
+        {230, 66, 72, 255},
+        {233, 104, 169, 255},
+        {132, 91, 205, 255},
+        {132, 139, 151, 255}
+    }};
+    return colors[color % colors.size()];
+}
 
 std::string chooseTitleName(const ACPMetaXml& metadata) {
     if (metadata.shortname_fr[0] != '\0') return metadata.shortname_fr;
@@ -119,19 +152,27 @@ std::vector<Entry> loadInstalledEntries() {
     return result;
 }
 
-std::vector<Entry*> filterEntries(std::vector<Entry>& all, EntryKind folder,
+std::vector<Entry*> filterEntries(std::vector<Entry>& all, const Entry& folder,
                                   const ModeConfig& config) {
     std::vector<Entry*> result;
     for (auto& entry : all) {
         if (entry.kind != EntryKind::InstalledTitle && entry.kind != EntryKind::Homebrew) continue;
-        if (folder == EntryKind::FolderFavorites && !containsTitle(config.favorites, entry.titleId)) continue;
-        if (folder == EntryKind::FolderRecent && !containsTitle(config.recent, entry.titleId)) continue;
+        if (folder.kind == EntryKind::FolderFavorites &&
+            !containsTitle(config.favorites, entry.titleId)) continue;
+        if (folder.kind == EntryKind::FolderRecent &&
+            !containsTitle(config.recent, entry.titleId)) continue;
+        if (folder.kind == EntryKind::FolderWiiU &&
+            !containsTitle(folder.folderTitleIds, entry.titleId)) continue;
         result.push_back(&entry);
     }
-    if (folder == EntryKind::FolderRecent) {
-        std::stable_sort(result.begin(), result.end(), [&config](const Entry* a, const Entry* b) {
-            const auto ia = std::find(config.recent.begin(), config.recent.end(), a->titleId);
-            const auto ib = std::find(config.recent.begin(), config.recent.end(), b->titleId);
+
+    const std::vector<uint64_t>* order = nullptr;
+    if (folder.kind == EntryKind::FolderRecent) order = &config.recent;
+    if (folder.kind == EntryKind::FolderWiiU) order = &folder.folderTitleIds;
+    if (order) {
+        std::stable_sort(result.begin(), result.end(), [order](const Entry* a, const Entry* b) {
+            const auto ia = std::find(order->begin(), order->end(), a->titleId);
+            const auto ib = std::find(order->begin(), order->end(), b->titleId);
             return ia < ib;
         });
     }
@@ -217,6 +258,12 @@ SDL_Color accentForIndex(std::size_t index) {
         {20, 184, 128, 255}, {243, 150, 32, 255}, {37, 115, 209, 255}
     }};
     return colors[index % colors.size()];
+}
+
+SDL_Color accentForEntry(const Entry& entry, std::size_t index) {
+    return entry.kind == EntryKind::FolderWiiU
+               ? wiiUFolderColor(entry.folderColor)
+               : accentForIndex(index);
 }
 
 void ensureIcon(AppContext& context, Entry& entry) {
@@ -306,7 +353,6 @@ void playLaunchTransition(AppContext& context, SDL_Texture* background,
         progress = std::min(1.0f, static_cast<float>(now - startedAt) / durationMs);
         const float zoom = easeOutCubic(std::min(1.0f, progress * 1.3f));
 
-        // Continue de servir ProcUI/SDL pendant la courte transition.
         (void) pollInput(context);
 
         drawBaseBackground(context, background);
@@ -459,15 +505,53 @@ bool runControlPanel(AppContext& context, ModeConfig& config, bool firstLaunch) 
 
 LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
     auto entries = loadInstalledEntries();
-    std::vector<Entry> folders{
-        {EntryKind::FolderAll, 0, "Tous les jeux"},
-        {EntryKind::FolderFavorites, 0, "Favoris"},
-        {EntryKind::FolderRecent, 0, "Recents"}
-    };
+    const WiiUMenuLayout menuLayout = loadWiiUMenuLayout();
+
+    std::vector<Entry> folders;
+    folders.reserve(menuLayout.collections.size() + 3);
+    for (const auto& collection : menuLayout.collections) {
+        Entry folder;
+        folder.kind = EntryKind::FolderWiiU;
+        folder.folderId = collection.id;
+        folder.name = collection.name;
+        folder.folderColor = collection.color;
+        folder.folderTitleIds = collection.titleIds;
+        folders.push_back(std::move(folder));
+    }
+    folders.push_back(makeSmartFolder(EntryKind::FolderAll, "Tous les jeux"));
+    folders.push_back(makeSmartFolder(EntryKind::FolderFavorites, "Favoris"));
+    folders.push_back(makeSmartFolder(EntryKind::FolderRecent, "Recents"));
+
+    std::vector<uint64_t> assignedTitleIds;
+    for (const auto& collection : menuLayout.collections) {
+        for (uint64_t titleId : collection.titleIds) {
+            if (!containsTitle(assignedTitleIds, titleId)) assignedTitleIds.push_back(titleId);
+        }
+    }
+
+    std::vector<Entry*> rootEntries;
+    if (menuLayout.loaded) {
+        for (uint64_t titleId : menuLayout.rootTitleIds) {
+            const auto found = std::find_if(entries.begin(), entries.end(), [titleId](const Entry& entry) {
+                return entry.kind == EntryKind::InstalledTitle && entry.titleId == titleId;
+            });
+            if (found != entries.end()) rootEntries.push_back(&*found);
+        }
+        for (auto& entry : entries) {
+            if (std::find(rootEntries.begin(), rootEntries.end(), &entry) != rootEntries.end()) continue;
+            if (entry.kind == EntryKind::Homebrew ||
+                !containsTitle(assignedTitleIds, entry.titleId)) {
+                rootEntries.push_back(&entry);
+            }
+        }
+    } else {
+        for (auto& entry : entries) rootEntries.push_back(&entry);
+    }
 
     BackgroundTexture background{loadBackground(context, config)};
     bool inFolder = false;
-    EntryKind currentFolder = EntryKind::FolderAll;
+    Entry* currentFolder = nullptr;
+    std::size_t rootFolderSelection = 0;
     std::vector<Entry*> visible;
     std::size_t selection = 0;
     bool dockActive = false;
@@ -479,11 +563,11 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
 
     auto rebuildVisible = [&]() {
         visible.clear();
-        if (inFolder) {
-            visible = filterEntries(entries, currentFolder, config);
+        if (inFolder && currentFolder) {
+            visible = filterEntries(entries, *currentFolder, config);
         } else {
             for (auto& folder : folders) visible.push_back(&folder);
-            for (auto& entry : entries) visible.push_back(&entry);
+            for (Entry* entry : rootEntries) visible.push_back(entry);
         }
         if (selection >= visible.size()) selection = visible.empty() ? 0 : visible.size() - 1;
         scroll = static_cast<float>(selection) * 220.0f;
@@ -536,7 +620,8 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
         if (input.back && inFolder) {
             playBackSound(context);
             inFolder = false;
-            selection = static_cast<std::size_t>(currentFolder) - static_cast<std::size_t>(EntryKind::FolderAll);
+            currentFolder = nullptr;
+            selection = rootFolderSelection;
             rebuildVisible();
         }
 
@@ -546,7 +631,8 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
                 toggleFavorite(config, selected->titleId);
                 playAcceptSound(context);
                 saveConfig(config);
-                if (inFolder && currentFolder == EntryKind::FolderFavorites) rebuildVisible();
+                if (inFolder && currentFolder &&
+                    currentFolder->kind == EntryKind::FolderFavorites) rebuildVisible();
             }
         }
 
@@ -562,10 +648,9 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
             }
         } else if (!visible.empty() && input.accept) {
             Entry* selected = visible[selection];
-            if (selected->kind == EntryKind::FolderAll ||
-                selected->kind == EntryKind::FolderFavorites ||
-                selected->kind == EntryKind::FolderRecent) {
-                currentFolder = selected->kind;
+            if (isFolderEntry(*selected)) {
+                currentFolder = selected;
+                rootFolderSelection = selection;
                 playFolderSound(context);
                 inFolder = true;
                 selection = 0;
@@ -573,7 +658,7 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
             } else {
                 playLaunchSound(context);
                 playLaunchTransition(context, background.texture, *selected,
-                                     accentForIndex(selection));
+                                     accentForEntry(*selected, selection));
                 if (launchEntry(*selected, config)) {
                     running = false;
                 } else {
@@ -587,12 +672,14 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
         scroll += (targetScroll - scroll) * std::min(1.0f, dt * 12.0f);
 
         drawBaseBackground(context, background.texture);
-        std::string subtitle = inFolder ? folders[static_cast<int>(currentFolder) - static_cast<int>(EntryKind::FolderAll)].name
-                                        : "Accueil";
+        const std::string subtitle = inFolder && currentFolder ? currentFolder->name : "Accueil";
         drawTopBar(context, subtitle);
 
         if (visible.empty()) {
-            drawText(context, context.fontLarge, "Ce dossier est vide",
+            const std::string message = currentFolder && currentFolder->kind == EntryKind::FolderWiiU
+                                            ? "Cette collection est vide"
+                                            : "Cette vue est vide";
+            drawText(context, context.fontLarge, message,
                      640, 330, {64, 68, 76, 255}, true);
         }
 
@@ -611,14 +698,15 @@ LauncherResult runLauncher(AppContext& context, ModeConfig& config) {
                              selected ? 6 : 2);
 
             SDL_Rect iconRect{card.x + 12, card.y + 12, card.w - 24, card.w - 24};
-            if (entry.kind == EntryKind::FolderAll || entry.kind == EntryKind::FolderFavorites || entry.kind == EntryKind::FolderRecent) {
-                drawFolderIcon(context, iconRect, accentForIndex(i));
+            const SDL_Color accent = accentForEntry(entry, i);
+            if (isFolderEntry(entry)) {
+                drawFolderIcon(context, iconRect, accent);
             } else {
                 ensureIcon(context, entry);
                 if (entry.icon) {
                     SDL_RenderCopy(context.renderer, entry.icon, nullptr, &iconRect);
                 } else {
-                    drawPlaceholderIcon(context, iconRect, entry.name, accentForIndex(i));
+                    drawPlaceholderIcon(context, iconRect, entry.name, accent);
                 }
             }
 
