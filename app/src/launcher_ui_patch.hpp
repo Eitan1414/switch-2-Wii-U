@@ -20,13 +20,11 @@ inline CategoryArtwork categoryArtworkForName(const std::string& name) {
                         selected, now)
 
 #define drawRoundedPanel(contextValue, rectValue, ...)                              \
-    do {                                                                             \
-        drawCardShadow((contextValue), (rectValue), false);                         \
-        drawRoundedPanel((contextValue), (rectValue), __VA_ARGS__);                 \
-    } while (false)
+    drawGlassPanel((contextValue), (rectValue), __VA_ARGS__)
 
 #define drawSystemDock(contextValue, selectedIndexValue)                            \
     do {                                                                             \
-        drawPositionIndicator((contextValue), selection, visible.size(), 640, 585); \
+        drawGlassDock((contextValue));                                               \
+        drawPositionIndicator((contextValue), selection, visible.size(), 640, 575); \
         drawSystemDock((contextValue), (selectedIndexValue));                       \
     } while (false)
