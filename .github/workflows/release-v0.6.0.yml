@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      issues: write
       statuses: write
 
     steps:
@@ -19,24 +20,68 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Verifier les ressources de l'intro
+        id: resources
+        continue-on-error: true
         run: |
-          test -f app/content/intro/intro.ogg
-          test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+          set -o pipefail
+          {
+            test -f app/content/intro/intro.ogg
+            test "$(find app/content/intro/frames -name 'frame_*.webp' | wc -l)" -eq 276
+          } 2>&1 | tee resources.log
 
       - name: Construire l'image de compilation
-        run: docker build -t switch2mode-builder .
+        id: docker_build
+        if: steps.resources.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          docker build -t switch2mode-builder . 2>&1 | tee docker-build.log
 
       - name: Compiler le WUHB, le plugin et l'archive SD
+        id: compile
+        if: steps.docker_build.outcome == 'success'
+        continue-on-error: true
         run: |
+          set -o pipefail
           docker run --rm \
             -v "$PWD":/project \
             switch2mode-builder \
-            ./scripts/build.sh
+            ./scripts/build.sh 2>&1 | tee compile.log
           test -f build/app/Switch2Mode.wuhb
           test -f plugin/Switch2ModePlugin.wps
           test -f dist/Switch2Mode_SD.zip
 
+      - name: Publier un rapport si la compilation echoue
+        if: steps.resources.outcome != 'success' || steps.docker_build.outcome != 'success' || steps.compile.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## Échec de la release v0.6.0"
+            echo
+            echo "- Commit : \`$GITHUB_SHA\`"
+            echo "- Exécution : \`$GITHUB_RUN_ID\`"
+            echo "- Ressources : \`${{ steps.resources.outcome }}\`"
+            echo "- Image Docker : \`${{ steps.docker_build.outcome }}\`"
+            echo "- Compilation : \`${{ steps.compile.outcome }}\`"
+            echo
+            for log in resources.log docker-build.log compile.log; do
+              if [[ -f "$log" ]]; then
+                echo "### $log"
+                echo '```text'
+                tail -n 180 "$log"
+                echo '```'
+              fi
+            done
+          } > failure-report.md
+
+          gh issue create \
+            --title "Diagnostic release v0.6.0 — run $GITHUB_RUN_ID" \
+            --body-file failure-report.md
+          exit 1
+
       - name: Creer les notes de version
+        if: steps.compile.outcome == 'success'
         run: |
           cat > release-notes.md <<'EOF'
           ## Switch2 Mode v0.6.0 — Alpha
@@ -49,6 +94,7 @@ jobs:
           - Archive SD prête à copier
           - Intro corrigée en 16:9, 30 FPS, avec 276 images synchronisées et piste audio OGG
           - Navigation horizontale, animations de glissement et lancement des jeux
+          - Tiroirs de rangement visuels : `Tous les jeux`, `Favoris` et `Récents`
           - Catégories et raccourcis inspirés des applications système Wii U
           - Compatibilité Wii U GamePad et manette Wii U Pro
 
@@ -62,6 +108,7 @@ jobs:
           EOF
 
       - name: Publier ou actualiser la release GitHub
+        if: steps.compile.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -87,6 +134,7 @@ jobs:
           fi
 
       - name: Conserver aussi les fichiers comme artifact
+        if: steps.compile.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: Switch2Mode-v0.6.0-WiiU
