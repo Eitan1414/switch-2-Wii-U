@@ -17,6 +17,10 @@ add_executable(Switch2Mode
     src/ui_categories.cpp
 )
 
+set_source_files_properties(src/launcher.cpp PROPERTIES
+    COMPILE_FLAGS "-include ${CMAKE_CURRENT_SOURCE_DIR}/src/launcher_ui_patch.hpp"
+)
+
 wut_create_rpx(Switch2Mode)
 wut_create_wuhb(Switch2Mode
     CONTENT content
