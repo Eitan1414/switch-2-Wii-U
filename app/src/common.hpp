@@ -46,6 +46,8 @@ struct AppContext {
     bool drawerOpen = false;
 };
 
+inline AppContext* ACTIVE_AUDIO_CONTEXT = nullptr;
+
 struct InputState {
     bool left = false;
     bool right = false;
@@ -68,4 +70,7 @@ void playFolderSound(AppContext& ctx);
 void playLaunchSound(AppContext& ctx);
 void startBackgroundMusic(AppContext& ctx);
 void stopBackgroundMusic(AppContext& ctx, int fadeMs = 0);
+inline void stopBackgroundMusic(int fadeMs = 0) {
+    if (ACTIVE_AUDIO_CONTEXT) stopBackgroundMusic(*ACTIVE_AUDIO_CONTEXT, fadeMs);
+}
 float easeOutCubic(float value);
