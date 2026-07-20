@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <sstream>
+#include <vector>
 
 namespace {
 
@@ -15,18 +17,81 @@ void fillCircle(SDL_Renderer* renderer, int centerX, int centerY, int radius, SD
     }
 }
 
+int textWidth(TTF_Font* font, const std::string& text) {
+    if (!font || text.empty()) return 0;
+    int width = 0;
+    int height = 0;
+    return TTF_SizeUTF8(font, text.c_str(), &width, &height) == 0 ? width : 0;
+}
+
+void removeLastUtf8Character(std::string& text) {
+    if (text.empty()) return;
+    std::size_t position = text.size() - 1;
+    while (position > 0 &&
+           (static_cast<unsigned char>(text[position]) & 0xC0) == 0x80) {
+        --position;
+    }
+    text.erase(position);
+}
+
+std::vector<std::string> wrapText(TTF_Font* font, const std::string& text,
+                                  int maxWidth, int maxLines) {
+    std::vector<std::string> lines;
+    if (!font || text.empty() || maxWidth <= 0 || maxLines <= 0) return lines;
+
+    std::istringstream stream(text);
+    std::vector<std::string> words;
+    std::string word;
+    while (stream >> word) words.push_back(word);
+    if (words.empty()) {
+        lines.push_back(fitTextToWidth(font, text, maxWidth));
+        return lines;
+    }
+
+    std::string current;
+    for (std::size_t index = 0; index < words.size(); ++index) {
+        if (static_cast<int>(lines.size()) == maxLines - 1) {
+            std::string remainder = current;
+            for (; index < words.size(); ++index) {
+                if (!remainder.empty()) remainder += ' ';
+                remainder += words[index];
+            }
+            lines.push_back(fitTextToWidth(font, remainder, maxWidth));
+            return lines;
+        }
+
+        const std::string candidate = current.empty() ? words[index]
+                                                       : current + " " + words[index];
+        if (textWidth(font, candidate) <= maxWidth) {
+            current = candidate;
+            continue;
+        }
+
+        if (!current.empty()) {
+            lines.push_back(current);
+            current.clear();
+            --index;
+        } else {
+            lines.push_back(fitTextToWidth(font, words[index], maxWidth));
+        }
+    }
+
+    if (!current.empty() && static_cast<int>(lines.size()) < maxLines) {
+        lines.push_back(current);
+    }
+    return lines;
+}
+
 void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool active) {
     const SDL_Color color = active ? SDL_Color{0, 168, 218, 255} : SDL_Color{55, 60, 70, 255};
     SDL_SetRenderDrawColor(context.renderer, color.r, color.g, color.b, color.a);
     if (kind == 0) {
         SDL_Rect bubble{centerX - 15, centerY - 12, 30, 20};
         SDL_RenderDrawRect(context.renderer, &bubble);
-        SDL_RenderDrawLine(context.renderer, centerX - 8, centerY + 8,
-                           centerX - 12, centerY + 14);
+        SDL_RenderDrawLine(context.renderer, centerX - 8, centerY + 8, centerX - 12, centerY + 14);
         fillCircle(context.renderer, centerX - 5, centerY - 4, 3, color);
         fillCircle(context.renderer, centerX + 6, centerY - 4, 3, color);
-        SDL_RenderDrawLine(context.renderer, centerX - 10, centerY + 4,
-                           centerX + 11, centerY + 4);
+        SDL_RenderDrawLine(context.renderer, centerX - 10, centerY + 4, centerX + 11, centerY + 4);
     } else if (kind == 1) {
         SDL_Rect bag{centerX - 12, centerY - 7, 24, 20};
         SDL_RenderDrawRect(context.renderer, &bag);
@@ -39,27 +104,18 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
                                 centerX + static_cast<int>(std::cos(angle) * 14),
                                 centerY + static_cast<int>(std::sin(angle) * 14));
         }
-        SDL_RenderDrawLine(context.renderer, centerX - 14, centerY,
-                           centerX + 14, centerY);
-        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
-                           centerX, centerY + 14);
+        SDL_RenderDrawLine(context.renderer, centerX - 14, centerY, centerX + 14, centerY);
+        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14, centerX, centerY + 14);
         SDL_Rect meridian{centerX - 7, centerY - 14, 14, 28};
         SDL_RenderDrawRect(context.renderer, &meridian);
     } else if (kind == 3) {
-        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
-                           centerX - 7, centerY - 10);
-        SDL_RenderDrawLine(context.renderer, centerX - 7, centerY - 10,
-                           centerX - 11, centerY + 7);
-        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
-                           centerX + 7, centerY - 10);
-        SDL_RenderDrawLine(context.renderer, centerX + 7, centerY - 10,
-                           centerX + 11, centerY + 7);
-        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 10,
-                           centerX + 13, centerY + 10);
-        SDL_RenderDrawLine(context.renderer, centerX - 11, centerY + 7,
-                           centerX - 13, centerY + 10);
-        SDL_RenderDrawLine(context.renderer, centerX + 11, centerY + 7,
-                           centerX + 13, centerY + 10);
+        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14, centerX - 7, centerY - 10);
+        SDL_RenderDrawLine(context.renderer, centerX - 7, centerY - 10, centerX - 11, centerY + 7);
+        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14, centerX + 7, centerY - 10);
+        SDL_RenderDrawLine(context.renderer, centerX + 7, centerY - 10, centerX + 11, centerY + 7);
+        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 10, centerX + 13, centerY + 10);
+        SDL_RenderDrawLine(context.renderer, centerX - 11, centerY + 7, centerX - 13, centerY + 10);
+        SDL_RenderDrawLine(context.renderer, centerX + 11, centerY + 7, centerX + 13, centerY + 10);
         fillCircle(context.renderer, centerX, centerY + 14, 3, color);
     } else if (kind == 4) {
         fillCircle(context.renderer, centerX - 7, centerY - 7, 6, color);
@@ -69,18 +125,12 @@ void drawDockGlyph(AppContext& context, int kind, int centerX, int centerY, bool
         SDL_RenderFillRect(context.renderer, &leftBody);
         SDL_RenderFillRect(context.renderer, &rightBody);
     } else {
-        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14,
-                           centerX, centerY + 6);
-        SDL_RenderDrawLine(context.renderer, centerX - 7, centerY,
-                           centerX, centerY + 7);
-        SDL_RenderDrawLine(context.renderer, centerX + 7, centerY,
-                           centerX, centerY + 7);
-        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 8,
-                           centerX - 13, centerY + 14);
-        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 14,
-                           centerX + 13, centerY + 14);
-        SDL_RenderDrawLine(context.renderer, centerX + 13, centerY + 14,
-                           centerX + 13, centerY + 8);
+        SDL_RenderDrawLine(context.renderer, centerX, centerY - 14, centerX, centerY + 6);
+        SDL_RenderDrawLine(context.renderer, centerX - 7, centerY, centerX, centerY + 7);
+        SDL_RenderDrawLine(context.renderer, centerX + 7, centerY, centerX, centerY + 7);
+        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 8, centerX - 13, centerY + 14);
+        SDL_RenderDrawLine(context.renderer, centerX - 13, centerY + 14, centerX + 13, centerY + 14);
+        SDL_RenderDrawLine(context.renderer, centerX + 13, centerY + 14, centerX + 13, centerY + 8);
     }
 }
 
@@ -101,8 +151,7 @@ void drawDrawerTransition(AppContext& context) {
     const float pulse = std::sin(raw * 3.14159265f);
 
     SDL_SetRenderDrawBlendMode(context.renderer, SDL_BLENDMODE_BLEND);
-    SDL_SetRenderDrawColor(context.renderer, 12, 18, 28,
-                           static_cast<Uint8>(72.0f * pulse));
+    SDL_SetRenderDrawColor(context.renderer, 12, 18, 28, static_cast<Uint8>(72.0f * pulse));
     SDL_Rect screen{0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
     SDL_RenderFillRect(context.renderer, &screen);
 
@@ -129,9 +178,7 @@ void drawDrawerTransition(AppContext& context) {
     }
 
     SDL_Rect body{centerX - 190, bodyY, 380, 150};
-    drawRoundedPanel(context, body,
-                     {247, 250, 253, 252},
-                     {accent.r, accent.g, accent.b, 255}, 6);
+    drawRoundedPanel(context, body, {247, 250, 253, 252}, {accent.r, accent.g, accent.b, 255}, 6);
 
     SDL_Rect front{body.x + 18, body.y + 40, body.w - 36, body.h - 58};
     SDL_SetRenderDrawColor(context.renderer, accent.r, accent.g, accent.b, 235);
@@ -141,16 +188,14 @@ void drawDrawerTransition(AppContext& context) {
     SDL_RenderFillRect(context.renderer, &shine);
 
     SDL_Rect lid{centerX - 204, bodyY - 26 - lidLift, 408, 58};
-    drawRoundedPanel(context, lid,
-                     {255, 255, 255, 252},
-                     {accent.r, accent.g, accent.b, 255}, 5);
+    drawRoundedPanel(context, lid, {255, 255, 255, 252}, {accent.r, accent.g, accent.b, 255}, 5);
     SDL_Rect handle{centerX - 46, lid.y + 18, 92, 15};
     SDL_SetRenderDrawColor(context.renderer, accent.r, accent.g, accent.b, 255);
     SDL_RenderFillRect(context.renderer, &handle);
 
-    drawText(context, context.fontSmall,
-             context.drawerEffect > 0 ? "OUVERTURE DU TIROIR" : "FERMETURE DU TIROIR",
-             centerX, 535, {255, 255, 255, 255}, true);
+    drawTextFitted(context, context.fontSmall,
+                   context.drawerEffect > 0 ? "OUVERTURE DU TIROIR" : "FERMETURE DU TIROIR",
+                   centerX, 535, 520, {255, 255, 255, 255}, true);
 }
 
 } // namespace
@@ -168,6 +213,20 @@ SDL_Texture* makeTextTexture(AppContext& context, TTF_Font* font,
     return texture;
 }
 
+std::string fitTextToWidth(TTF_Font* font, const std::string& text, int maxWidth) {
+    if (!font || text.empty() || maxWidth <= 0) return {};
+    if (textWidth(font, text) <= maxWidth) return text;
+
+    const std::string ellipsis = "...";
+    if (textWidth(font, ellipsis) > maxWidth) return {};
+
+    std::string result = text;
+    while (!result.empty() && textWidth(font, result + ellipsis) > maxWidth) {
+        removeLastUtf8Character(result);
+    }
+    return result.empty() ? ellipsis : result + ellipsis;
+}
+
 void drawText(AppContext& context, TTF_Font* font, const std::string& text,
               int x, int y, SDL_Color color, bool centered) {
     int width = 0;
@@ -177,6 +236,27 @@ void drawText(AppContext& context, TTF_Font* font, const std::string& text,
     SDL_Rect target{x - (centered ? width / 2 : 0), y, width, height};
     SDL_RenderCopy(context.renderer, texture, nullptr, &target);
     SDL_DestroyTexture(texture);
+}
+
+void drawTextFitted(AppContext& context, TTF_Font* font, const std::string& text,
+                    int x, int y, int maxWidth, SDL_Color color, bool centered) {
+    drawText(context, font, fitTextToWidth(font, text, maxWidth), x, y, color, centered);
+}
+
+void drawTextWrapped(AppContext& context, TTF_Font* font, const std::string& text,
+                     const SDL_Rect& area, SDL_Color color, int maxLines,
+                     bool centered) {
+    const auto lines = wrapText(font, text, area.w, maxLines);
+    if (lines.empty()) return;
+
+    const int lineHeight = std::max(1, TTF_FontLineSkip(font));
+    const int totalHeight = static_cast<int>(lines.size()) * lineHeight;
+    int y = area.y + std::max(0, (area.h - totalHeight) / 2);
+    for (const auto& line : lines) {
+        const int x = centered ? area.x + area.w / 2 : area.x;
+        drawText(context, font, line, x, y, color, centered);
+        y += lineHeight;
+    }
 }
 
 void drawRoundedPanel(AppContext& context, const SDL_Rect& rect,
@@ -198,8 +278,11 @@ void drawCircle(AppContext& context, int centerX, int centerY, int radius, SDL_C
 void drawButtonHint(AppContext& context, const std::string& button,
                     const std::string& label, int x, int y) {
     fillCircle(context.renderer, x + 16, y + 16, 16, {28, 31, 38, 230});
-    drawText(context, context.fontSmall, button, x + 16, y + 2, {255, 255, 255, 255}, true);
-    drawText(context, context.fontSmall, label, x + 42, y + 2, {45, 48, 54, 255});
+    drawTextFitted(context, context.fontSmall, button, x + 16, y + 2, 28,
+                   {255, 255, 255, 255}, true);
+    const int availableWidth = std::max(0, SCREEN_WIDTH - (x + 42) - 8);
+    drawTextFitted(context, context.fontSmall, label, x + 42, y + 2,
+                   availableWidth, {45, 48, 54, 255});
 }
 
 void drawSystemDock(AppContext& context, int selectedIndex) {
@@ -228,8 +311,8 @@ void drawSystemDock(AppContext& context, int selectedIndex) {
             }
         }
         drawDockGlyph(context, i, centerX, centerY, active);
-        drawText(context, context.fontSmall, labels[i], centerX, 651,
-                 active ? SDL_Color{0, 143, 191, 255} : SDL_Color{82, 87, 96, 255}, true);
+        drawTextFitted(context, context.fontSmall, labels[i], centerX, 651, 78,
+                       active ? SDL_Color{0, 143, 191, 255} : SDL_Color{82, 87, 96, 255}, true);
     }
 
     drawDrawerTransition(context);
@@ -258,7 +341,7 @@ void drawPlaceholderIcon(AppContext& context, const SDL_Rect& rect,
         if (initials.size() == 2) break;
     }
     if (initials.empty()) initials = "U";
-    drawText(context, context.fontLarge, initials,
-             rect.x + rect.w / 2, rect.y + rect.h / 2 - 28,
-             {255, 255, 255, 255}, true);
+    drawTextFitted(context, context.fontLarge, initials,
+                   rect.x + rect.w / 2, rect.y + rect.h / 2 - 28,
+                   rect.w - 20, {255, 255, 255, 255}, true);
 }
