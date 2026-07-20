@@ -12,8 +12,12 @@ bool playIntro(AppContext& context) {
     constexpr int frameRate = 30;
     constexpr int frameCount = 276;
 
+    stopBackgroundMusic(250);
+    SDL_Delay(260);
+
     Mix_Music* music = Mix_LoadMUS("fs:/vol/content/intro/intro.ogg");
     if (music) {
+        Mix_VolumeMusic(MIX_MAX_VOLUME);
         Mix_PlayMusic(music, 1);
     }
 
@@ -24,9 +28,7 @@ bool playIntro(AppContext& context) {
 
     while (!skipped) {
         const auto elapsed = SDL_GetTicks64() - start;
-        if (elapsed >= durationMs) {
-            break;
-        }
+        if (elapsed >= durationMs) break;
 
         const int frame = std::min(frameCount, static_cast<int>(elapsed * frameRate / 1000) + 1);
         if (frame != loadedFrame) {
@@ -56,5 +58,6 @@ bool playIntro(AppContext& context) {
     Mix_HaltMusic();
     Mix_FreeMusic(music);
     SDL_DestroyTexture(frameTexture);
+    startBackgroundMusic(context);
     return !skipped;
 }
