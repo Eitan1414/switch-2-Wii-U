@@ -11,6 +11,7 @@ add_executable(Switch2Mode
     src/config.cpp
     src/intro.cpp
     src/launcher.cpp
+    src/wiiu_collections.cpp
     src/ui.cpp
 )
 
@@ -41,7 +42,7 @@ target_link_directories(Switch2Mode PRIVATE
     /opt/devkitpro/wums/lib
 )
 target_compile_options(Switch2Mode PRIVATE -Wall -Wextra -Wpedantic -O2)
-target_compile_definitions(Switch2Mode PRIVATE SWITCH2MODE_VERSION="0.6.0")
+target_compile_definitions(Switch2Mode PRIVATE SWITCH2MODE_VERSION="0.7.0")
 
 target_link_libraries(Switch2Mode PRIVATE
     mocha
