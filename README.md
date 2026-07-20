@@ -1,8 +1,9 @@
 # Switch2 Mode pour Wii U
 
 Switch2 Mode est un lanceur graphique pour Wii U sous Aroma. Il affiche les jeux
-horizontalement, propose des tiroirs de rangement, des transitions glissees et utilise la
-video fournie comme introduction. Le projet ne modifie aucun fichier de la NAND.
+horizontalement, reprend les collections creees dans le menu Wii U, propose des
+transitions glissees et utilise la video fournie comme introduction. Le lecteur
+de collections fonctionne en lecture seule et ne modifie aucun fichier de la NAND.
 
 ## Contenu
 
@@ -28,13 +29,34 @@ Maintenir **B** pendant l'arrivee sur le menu Wii U ignore le lancement
 automatique pour cette fois. Le mode sans echec d'Aroma reste egalement
 disponible avec `L + Haut + Minus` pendant le demarrage.
 
+## Collections du menu Wii U
+
+Switch2 Mode lit l'organisation du profil Wii U actif dans
+`BaristaAccountSaveFile.dat`. Les collections creees directement depuis le menu
+Wii U sont affichees avec :
+
+- leur nom ;
+- leur couleur ;
+- les jeux ranges a l'interieur ;
+- l'ordre des jeux dans chaque collection.
+
+Lorsque **Homebrew on Wii U Menu** redirige l'organisation vers la carte SD,
+Switch2 Mode utilise automatiquement cette copie active. Sinon, il lit la
+sauvegarde native du menu dans la MLC. Cette lecture est strictement en lecture
+seule : l'application ne deplace aucun jeu et ne reecrit jamais la sauvegarde du
+menu Wii U.
+
+Les elements **Tous les jeux**, **Favoris** et **Recents** sont des vues rapides
+propres a Switch2 Mode. Ce ne sont pas les collections creees par l'utilisateur
+sur le menu Wii U.
+
 ## Commandes
 
-- Gauche / Droite : parcourir les jeux et les tiroirs de rangement.
-- A : ouvrir un tiroir ou lancer le jeu selectionne.
-- B : refermer un tiroir ou ouvrir le panneau du mode.
+- Gauche / Droite : parcourir les jeux, les collections et les vues rapides.
+- A : ouvrir une collection ou lancer le jeu selectionne.
+- B : refermer une collection ou ouvrir le panneau du mode.
 - X : ouvrir les options.
-- Y : ajouter ou retirer le jeu selectionne des favoris.
+- Y : ajouter ou retirer le jeu selectionne des favoris Switch2 Mode.
 - Plus : ouvrir les options.
 - Bas : passer de la liste des jeux a la barre d'actions circulaires.
 - Haut : revenir de la barre d'actions aux jeux.
@@ -48,7 +70,7 @@ disponibles sur la console (Nintendo ou remplacement communautaire).
 
 La barre superieure affiche le nom du profil actif, l'etat Wi-Fi, l'heure et le
 niveau de batterie reel du GamePad. Cinq sons originaux accompagnent le
-deplacement, la validation, le retour, l'ouverture des tiroirs et le lancement.
+deplacement, la validation, le retour, l'ouverture des collections et le lancement.
 
 Au lancement d'un jeu ou d'un homebrew, un carillon numerique ascendant original
 accompagne son icone qui se recentre et s'agrandit. Le menu s'assombrit, puis un
@@ -81,12 +103,12 @@ La video MP4 corrigee est transformee pendant la preparation des ressources en
 276 images WebP de 960x540 a 30 images/s et une piste Ogg. Cela evite d'embarquer
 un decodeur H.264 lourd dans l'application Wii U.
 
-## Limites de cette premiere version
+## Limites de cette version alpha
 
-- Les trois tiroirs de rangement fournis sont `Tous les jeux`, `Favoris` et `Recents`.
-- Ces tiroirs sont des collections visuelles servant a organiser les jeux dans
-  l'interface. Ce ne sont pas des repertoires crees sur la carte SD.
-- Les titres Wii U installes et les homebrews `.wuhb`/`.rpx` du dossier
-  `SD:/wiiu/apps` sont listes.
+- Les collections Wii U sont importees en lecture seule : leur modification se
+  fait toujours depuis le menu Wii U original.
+- Les jeux Wii U installes sont relies aux collections grace a leur Title ID.
+- Les homebrews `.wuhb`/`.rpx` autonomes de `SD:/wiiu/apps` restent visibles a
+  l'accueil lorsqu'ils ne possedent pas d'identifiant correspondant dans le menu.
 - Les apercus UTheme servent de fond lorsque le theme ne fournit pas directement
   une texture de fond exploitable.
