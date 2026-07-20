@@ -30,6 +30,7 @@ struct AppContext {
     Mix_Chunk* soundBack = nullptr;
     Mix_Chunk* soundFolder = nullptr;
     Mix_Chunk* soundLaunch = nullptr;
+    Mix_Music* backgroundMusic = nullptr;
     std::vector<SDL_GameController*> controllers;
     std::string profileName = "Profil Wii U";
     bool wifiConnected = false;
@@ -38,8 +39,6 @@ struct AppContext {
     bool acInitialized = false;
     bool actInitialized = false;
 
-    // Effet visuel et sonore reserve aux collections/tiroirs.
-    // 1 = ouverture, -1 = fermeture, 0 = inactif.
     int drawerEffect = 0;
     uint64_t drawerEffectStarted = 0;
     bool drawerOpen = false;
@@ -65,4 +64,6 @@ void playAcceptSound(AppContext& ctx);
 void playBackSound(AppContext& ctx);
 void playFolderSound(AppContext& ctx);
 void playLaunchSound(AppContext& ctx);
+void startBackgroundMusic(AppContext& ctx);
+void stopBackgroundMusic(int fadeMs = 0);
 float easeOutCubic(float value);
